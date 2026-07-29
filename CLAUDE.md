@@ -192,7 +192,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 # Project: Address Book Management System (Backend API)
 
 > This section layers project-specific rules on top of the Laravel Boost guidelines above. When the two ever conflict, the Boost foundation rules win for framework mechanics; this section wins for architecture and business boundaries.
-> Authoritative design docs live in [docs/](docs/). Full engineering foundation: [docs/08-Project-Guardrails.md](docs/08-Project-Guardrails.md).
+> Authoritative design docs live in [docs/](docs/) (start at [docs/README.md](docs/README.md)). Full engineering foundation: [docs/05-Guardrails.md](docs/05-Guardrails.md).
 
 ## What this project is
 
@@ -256,7 +256,7 @@ api-doc/                                        module-wise API handover docs
 docs/                                           design & engineering docs (source of truth)
 ```
 
-Golden Module (copy by analogy): the **Auth** slice — see [docs/Golden-Module.md](docs/Golden-Module.md).
+Golden Module (copy by analogy): the **Auth** slice — see [docs/06-Golden-Module.md](docs/06-Golden-Module.md).
 
 ## Commands
 

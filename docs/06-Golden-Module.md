@@ -5,7 +5,7 @@
 **Version:** 1.0
 **Status:** Implemented, tested, green (19 passing tests).
 **Purpose:** The Authentication module is the **reference implementation** every future module must copy. This document maps the built code to the architecture so a new module can be produced by analogy.
-**Source Documents:** [06-Architecture.md](06-Architecture.md), [07-Technical-Decisions.md](07-Technical-Decisions.md), [08-Project-Guardrails.md](08-Project-Guardrails.md), [Module Contracts/Module-A-Auth.md](Module%20Contracts/Module-A-Auth.md)
+**Source Documents:** [04-Architecture.md](04-Architecture.md), [05-Guardrails.md](05-Guardrails.md), [api-doc/auth.md](../api-doc/auth.md)
 
 ---
 
@@ -78,9 +78,9 @@ UserResource + ApiResponse ► uniform { success, message, data } envelope
 
 ## 5. Public Contract (summary)
 
-Full contract: [Module Contracts/Module-A-Auth.md](Module%20Contracts/Module-A-Auth.md).
+Full contract: [api-doc/auth.md](../api-doc/auth.md).
 
-- **Operations:** `POST /api/v1/login` (public), `GET /api/v1/me`, `POST /api/v1/logout` (protected).
+- **Operations:** `POST /api/v1/login` (public, throttled 6/min), `GET /api/v1/me`, `POST /api/v1/logout` (protected).
 - **Cross-module capability:** exposes the authenticated `UserId` (identity by reference) for the Address Book module — no other internal is shared.
 - **Errors:** 422 (validation/bad credentials), 401 (unauthenticated), 429 (throttle).
 
@@ -104,11 +104,11 @@ Full contract: [Module Contracts/Module-A-Auth.md](Module%20Contracts/Module-A-A
 
 - Sanctum installed and wired; `HasApiTokens` on `User`.
 - All routes registered under `/api/v1`.
-- **19 tests passing (52 assertions)**; Pint clean.
+- **Auth slice: 19 tests passing; full suite: 48 tests passing.** Pint clean.
 - Login failures return 422 (framework convention); token failures return 401 via the Sanctum guard.
 
 ---
 
 ### Note
 
-This is a documentation index over real, tested code — the code is the source of truth. If the code and this document ever diverge, update this document. New modules that deviate from these conventions require an updated ADR in [07-Technical-Decisions.md](07-Technical-Decisions.md).
+This is a documentation index over real, tested code — the code is the source of truth. If the code and this document ever diverge, update this document. New modules that deviate from these conventions require an updated decision record in [04-Architecture.md](04-Architecture.md).

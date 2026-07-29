@@ -47,7 +47,7 @@ If shipped as generated, **every** create/update/list request would have been re
 
 **How it was caught:** knowing that (a) these routes are already protected by the `auth:sanctum` guard at the route layer, so per-request authorization there should simply be `true`, and (b) the feature tests assert `201`/`200`, which would have surfaced as `403` on the first run. All three contact Form Requests were changed to `return true`, and the auth guard remains the single access-control point.
 
-**A second, subtler catch (documentation).** The first draft of `api-doc/auth.md` presented `login`, `me`, and `logout` as the authentication surface without distinguishing what the spec actually mandates. Verifying against `PRD.md`/`Idea.md` showed that **only `login` is a written requirement**; `logout` is merely *implied* by "revoked token → 401" (tracked as open question OQ-2) and `me` is a Golden-Module convenience addition not named in the spec at all. The lesson reinforced: **reconcile generated documentation against the source-of-truth docs**, not against the code's current behavior alone.
+**A second, subtler catch (documentation).** The first draft of `api-doc/auth.md` presented `login`, `me`, and `logout` as the authentication surface without distinguishing what the spec actually mandates. Verifying against the product brief (`docs/01-Product-Brief.md`) showed that **only `login` is a written requirement**; `logout` is merely *implied* by "revoked token → 401" (tracked as open question OQ-2) and `me` is a Golden-Module convenience addition not named in the spec at all. The lesson reinforced: **reconcile generated documentation against the source-of-truth docs**, not against the code's current behavior alone.
 
 ---
 
