@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Log;
 
 class ContactService
 {
-    /**
-     * @param  array{search?: ?string, gender?: ?string, nationality?: ?string, min_age?: ?int, max_age?: ?int}  $filters
-     * @return LengthAwarePaginator<int, Contact>
-     */
     public function list(array $filters, int $perPage, int $ownerId): LengthAwarePaginator
     {
         $query = Contact::query()->where('created_by', $ownerId);
@@ -44,9 +40,6 @@ class ContactService
         return $query->latest('id')->paginate($perPage)->withQueryString();
     }
 
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
     public function create(array $attributes, int $ownerId): Contact
     {
         $contact = new Contact($attributes);
@@ -63,9 +56,6 @@ class ContactService
         return Contact::query()->where('created_by', $ownerId)->findOrFail($id);
     }
 
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
     public function update(Contact $contact, array $attributes): Contact
     {
         $contact->fill($attributes);

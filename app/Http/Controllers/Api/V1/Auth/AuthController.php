@@ -11,19 +11,10 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Handles authentication endpoints.
- *
- * Controllers stay thin: they receive validated input, delegate to the
- * AuthService for all business logic, and return a uniform response.
- */
 class AuthController extends Controller
 {
     public function __construct(private readonly AuthService $authService) {}
 
-    /**
-     * Register a new user and return a bearer token. (Public)
-     */
     public function register(RegisterRequest $request): JsonResponse
     {
         $result = $this->authService->register([
@@ -39,9 +30,6 @@ class AuthController extends Controller
         ], 'Registered successfully.', 201);
     }
 
-    /**
-     * Authenticate a user and return a bearer token. (Public)
-     */
     public function login(LoginRequest $request): JsonResponse
     {
         $result = $this->authService->login(
@@ -57,9 +45,6 @@ class AuthController extends Controller
         ], 'Logged in successfully.');
     }
 
-    /**
-     * Return the currently authenticated user. (Protected)
-     */
     public function me(Request $request): JsonResponse
     {
         return ApiResponse::success(
@@ -68,9 +53,6 @@ class AuthController extends Controller
         );
     }
 
-    /**
-     * Revoke the current access token. (Protected)
-     */
     public function logout(Request $request): JsonResponse
     {
         $this->authService->logout($request->user());

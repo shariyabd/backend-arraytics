@@ -5,12 +5,6 @@ namespace App\Http\Requests\Api\V1\Auth;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
-/**
- * Validates input for the public registration endpoint.
- *
- * Registration is public, so authorization is always granted here; account
- * creation and token issuance are performed by the AuthService.
- */
 class RegisterRequest extends FormRequest
 {
     public function authorize(): bool
@@ -18,9 +12,6 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
         return [
@@ -31,9 +22,6 @@ class RegisterRequest extends FormRequest
         ];
     }
 
-    /**
-     * A label for the issued token, defaulting to the client user agent.
-     */
     public function deviceName(): string
     {
         return $this->input('device_name')

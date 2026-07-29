@@ -13,9 +13,6 @@ class ListContactsRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
     public function rules(): array
     {
         return [
@@ -29,9 +26,6 @@ class ListContactsRequest extends FormRequest
         ];
     }
 
-    /**
-     * @return array{search: ?string, gender: ?string, nationality: ?string, min_age: ?int, max_age: ?int}
-     */
     public function filters(): array
     {
         return [

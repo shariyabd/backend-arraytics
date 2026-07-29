@@ -11,10 +11,6 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @param  array<string, string>  $overrides
-     * @return array<string, string>
-     */
     private function validPayload(array $overrides = []): array
     {
         return array_merge([

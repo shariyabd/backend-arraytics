@@ -63,7 +63,6 @@ class AuthServiceTest extends TestCase
         try {
             $this->authService->login('jane@example.com', 'wrong', 'phpunit');
         } catch (ValidationException) {
-            // expected
         }
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
@@ -102,7 +101,6 @@ class AuthServiceTest extends TestCase
         $user = User::factory()->create();
         $token = $user->createToken('phpunit');
 
-        // Simulate the token being the one backing the current request.
         $user->withAccessToken($token->accessToken);
 
         $this->authService->logout($user);

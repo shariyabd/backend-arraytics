@@ -12,9 +12,6 @@ class ContactManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Create a user, authenticate as them, and return them.
-     */
     private function actingUser(): User
     {
         $user = User::factory()->create();
@@ -23,10 +20,6 @@ class ContactManagementTest extends TestCase
         return $user;
     }
 
-    /**
-     * @param  array<string, mixed>  $overrides
-     * @return array<string, mixed>
-     */
     private function validPayload(array $overrides = []): array
     {
         return array_merge([

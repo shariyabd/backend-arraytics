@@ -171,9 +171,6 @@ class AuthenticationTest extends TestCase
 
         $this->withToken($token)->postJson('/api/v1/logout')->assertOk();
 
-        // The test app is reused across requests, so the guard caches the user
-        // resolved during logout. Flush it to simulate a fresh request process
-        // (as happens in production) before re-checking the revoked token.
         $this->app['auth']->forgetGuards();
 
         $this->withToken($token)->getJson('/api/v1/me')->assertStatus(401);
@@ -183,7 +180,6 @@ class AuthenticationTest extends TestCase
     {
         User::factory()->create(['email' => 'jane@example.com', 'password' => 'password']);
 
-        // Route allows 6 attempts per minute; the 7th must be throttled.
         for ($attempt = 0; $attempt < 6; $attempt++) {
             $this->postJson('/api/v1/login', [
                 'email' => 'jane@example.com',

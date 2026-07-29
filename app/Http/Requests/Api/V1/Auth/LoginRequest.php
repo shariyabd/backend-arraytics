@@ -4,12 +4,6 @@ namespace App\Http\Requests\Api\V1\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/**
- * Validates credentials for the login endpoint.
- *
- * Login is a public endpoint, so authorization is always granted here;
- * credential verification is performed by the AuthService, not by validation.
- */
 class LoginRequest extends FormRequest
 {
     public function authorize(): bool
@@ -17,9 +11,6 @@ class LoginRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
         return [
@@ -29,9 +20,6 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    /**
-     * A label for the issued token, defaulting to the client user agent.
-     */
     public function deviceName(): string
     {
         return $this->input('device_name')
