@@ -227,7 +227,48 @@ Route → Form Request → Controller → Service → Model → API Resource/DTO
 2. Run the focused test(s) for what you changed: `php artisan test --compact --filter=...`
 3. Confirm the layered flow above was respected.
 
-## Open questions that affect implementation
+## Resolved open questions (Address Book module)
 
-- **OQ-1:** own-only vs. see-all contact visibility — enforced in the Service layer once decided.
-- Validation bounds (age range, allowed gender values, nationality form, website requiredness) — see [docs/03-REQUIRMENTS-ANALYSIS.md](docs/03-REQUIRMENTS-ANALYSIS.md).
+Implemented as isolated defaults; full detail in [api-doc/address-book.md](api-doc/address-book.md).
+
+- **OQ-1 — visibility:** **see-all**. Any authenticated user may read/update/delete any contact; `created_by` is audit metadata, not an access boundary (no 403 path). Single policy point: the query scope in `ContactService`.
+- **OQ-3 — age:** integer `1–150` (`Contact::MIN_AGE`/`MAX_AGE`).
+- **OQ-4 — gender:** `Male | Female | Other` (`Contact::GENDERS`).
+- **OQ-5 — nationality:** free-text (max 255).
+- **OQ-6 — page size:** default 15, max 100 (`config/contacts.php`).
+- **OQ-11 — website:** optional (nullable URL).
+
+## Folder map
+
+```
+app/Http/Controllers/Api/V1/{Auth,Contact}/   thin controllers, versioned
+app/Http/Requests/Api/V1/{Auth,Contact}/      Form Request validation
+app/Http/Resources/Api/V1/                     API Resources (output shaping)
+app/Services/{Auth,Contact}/                   business logic + ownership stamping
+app/Models/                                    User, Contact
+app/Support/ApiResponse.php                    uniform { success, message, data } envelope
+bootstrap/app.php                              routing + central exception → envelope mapping
+config/contacts.php                            pagination defaults
+database/{factories,migrations,seeders}/       Contact factory/seeder (~50 records)
+routes/api.php                                 /api/v1 route group (auth:sanctum protected)
+tests/{Feature,Unit}/Api/V1/                   endpoint + service tests
+api-doc/                                        module-wise API handover docs
+docs/                                           design & engineering docs (source of truth)
+```
+
+Golden Module (copy by analogy): the **Auth** slice — see [docs/Golden-Module.md](docs/Golden-Module.md).
+
+## Commands
+
+| Task | Command |
+|------|---------|
+| Install deps | `composer install` |
+| Env + key | `cp .env.example .env && php artisan key:generate` |
+| Migrate + seed | `php artisan migrate --seed` |
+| Run API (dev) | `php artisan serve` → http://localhost:8000 |
+| Full test suite | `php artisan test --compact` |
+| Focused tests | `php artisan test --compact --filter=Contact` |
+| Format (fix) | `vendor/bin/pint --dirty --format agent` |
+| List API routes | `php artisan route:list --path=api --except-vendor` |
+
+**Seeded login:** `test@example.com` / `password`.

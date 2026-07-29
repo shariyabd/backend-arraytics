@@ -1,59 +1,203 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Address Book Management System — Backend API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A decoupled **Laravel 12 REST API** for managing address-book contacts. JSON only (no Blade/views), consumed by a separate React SPA. Token authentication via Laravel Sanctum; one core entity (`Contact`) owned by the authenticated user who created it.
 
-## About Laravel
+> This README documents the **backend**. The frontend has its own setup guide. Docker is optional and documented at the end (the non-Docker steps below are the primary, always-supported path).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 1. Tech Stack & Versions
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Tool | Version | Notes |
+|------|---------|-------|
+| PHP | **8.3** (min 8.2) | CLI + extensions: `pdo`, `pdo_mysql` (or `pdo_sqlite`), `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json` |
+| Composer | **2.x** | Dependency manager |
+| Laravel | **12** | Framework |
+| Laravel Sanctum | 4 | Token auth |
+| MySQL | **8.x** | Primary database (SQLite supported for quick start) |
+| PHPUnit | 11 | Testing |
+| Node.js | 20+ | **Optional** — only for the bundled `composer dev`/`composer setup` convenience scripts; not required to run the API |
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 2. Architecture
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Every request flows through a strict, one-directional layered pipeline:
 
-## Laravel Sponsors
+```
+Route → Form Request → Controller → Service → Model → API Resource
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **Controllers are thin** — validate via Form Request, call one Service method, return a Resource.
+- **All business logic and ownership stamping live in Services.** `created_by` is set only in the service from `auth()->id()` — never accepted from the client.
+- **Output always goes through an API Resource** into the uniform envelope `{ success, message, data }`.
+- **Errors are centralized** in `bootstrap/app.php` and rendered through the same envelope.
 
-### Premium Partners
+### Folder map (key paths)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```
+backend/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/Api/V1/{Auth,Contact}/   # thin controllers, versioned
+│   │   ├── Requests/Api/V1/{Auth,Contact}/      # Form Request validation
+│   │   └── Resources/Api/V1/                    # API Resources (output shaping)
+│   ├── Services/{Auth,Contact}/                 # business logic (the heart)
+│   ├── Models/                                  # User, Contact
+│   └── Support/ApiResponse.php                  # uniform response envelope
+├── bootstrap/app.php                            # middleware, routing, exception → envelope
+├── config/contacts.php                          # pagination defaults (per_page)
+├── database/
+│   ├── factories/                               # User, Contact factories
+│   ├── migrations/                              # users, contacts, tokens, ...
+│   └── seeders/                                 # DatabaseSeeder → ContactSeeder (~50)
+├── routes/api.php                               # /api/v1 routes
+├── tests/{Feature,Unit}/Api/V1/                 # endpoint + service tests
+├── api-doc/                                     # module-wise API handover docs
+└── docs/                                         # design & engineering docs
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 3. Prerequisites
 
-## Code of Conduct
+Install and confirm:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php -v         # 8.3.x (>= 8.2)
+composer -V    # 2.x
+mysql --version # 8.x  (skip if using the SQLite quick start)
+```
 
-## Security Vulnerabilities
+Ensure the PHP extensions listed in §1 are enabled (`php -m` to check).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 4. Setup (Non-Docker) — the primary path
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4.1 Install dependencies
+
+```bash
+cd backend
+composer install
+```
+
+### 4.2 Create and key the environment file
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+### 4.3 Configure the database
+
+**Option A — MySQL (recommended, matches production).**
+Create a database, then set these keys in `.env`:
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=address_book
+DB_USERNAME=root
+DB_PASSWORD=your_password
+```
+
+```bash
+mysql -u root -p -e "CREATE DATABASE address_book CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+**Option B — SQLite (zero-config quick start).**
+Keep `DB_CONNECTION=sqlite` in `.env` and create the file:
+
+```bash
+touch database/database.sqlite
+```
+
+### 4.4 Run migrations and seed data
+
+```bash
+php artisan migrate --seed
+```
+
+This creates the schema and seeds **1 test user + ~50 realistic contacts** (each `created_by` references a valid user).
+
+### 4.5 Start the API
+
+```bash
+php artisan serve
+```
+
+The API is now at **http://localhost:8000** (base path `/api/v1`).
+
+---
+
+## 5. Seeded Credentials
+
+Use these to obtain a token via the login endpoint:
+
+| Field | Value |
+|-------|-------|
+| Email | `test@example.com` |
+| Password | `password` |
+
+```bash
+curl -X POST http://localhost:8000/api/v1/login \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+```
+
+Copy `data.token` from the response and send it as `Authorization: Bearer <token>` on protected endpoints, e.g.:
+
+```bash
+curl http://localhost:8000/api/v1/contacts \
+  -H "Accept: application/json" -H "Authorization: Bearer <token>"
+```
+
+---
+
+## 6. Running Tests
+
+Tests run against an in-memory SQLite database (no configuration needed):
+
+```bash
+php artisan test --compact          # full suite
+php artisan test --compact --filter=Contact   # a subset
+```
+
+Code style (Laravel Pint):
+
+```bash
+vendor/bin/pint          # fix
+vendor/bin/pint --test   # check only
+```
+
+---
+
+## 7. API Overview
+
+Base path: `/api/v1`. Uniform envelope: `{ success, message, data }` (or `{ success, message, errors }`).
+
+| Module | Endpoints |
+|--------|-----------|
+| Auth | `POST /login` (public, throttled), `GET /me`, `POST /logout` (protected) |
+| Address Book | `GET/POST /contacts`, `GET/PUT/PATCH/DELETE /contacts/{id}` (all protected) |
+
+Full request/response/validation/error contracts per module:
+
+- [api-doc/auth.md](api-doc/auth.md)
+- [api-doc/address-book.md](api-doc/address-book.md)
+
+Inspect live routes with `php artisan route:list --path=api --except-vendor`.
+
+---
+
+## 8. Docker (Optional — not yet provided)
+
+Docker is a bonus. A `docker-compose.yml` (backend + frontend + MySQL, single-command startup) is **planned** and will be added once the frontend integration is complete. Until then, use the non-Docker steps in §4, which remain the fully supported path.
+
+---
+
+## 9. Frontend
+
+The React SPA lives in the sibling `frontend/` directory and is documented separately. It consumes this API using the base URL and the token flow described in §5 and `api-doc/`.
