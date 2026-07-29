@@ -5,6 +5,7 @@ namespace Tests\Unit\Services\Auth;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -66,6 +67,34 @@ class AuthServiceTest extends TestCase
         }
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_register_creates_a_user_and_issues_a_token(): void
+    {
+        $result = $this->authService->register([
+            'name' => 'Jane Doe',
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+        ], 'phpunit');
+
+        $this->assertTrue($result['user']->exists);
+        $this->assertSame('jane@example.com', $result['user']->email);
+        $this->assertIsString($result['token']);
+        $this->assertNotEmpty($result['token']);
+        $this->assertDatabaseHas('users', ['email' => 'jane@example.com']);
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+    }
+
+    public function test_register_stores_the_password_hashed(): void
+    {
+        $result = $this->authService->register([
+            'name' => 'Jane Doe',
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+        ], 'phpunit');
+
+        $this->assertNotSame('password123', $result['user']->password);
+        $this->assertTrue(Hash::check('password123', $result['user']->password));
     }
 
     public function test_logout_revokes_the_current_access_token(): void

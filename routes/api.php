@@ -10,13 +10,17 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | All endpoints are namespaced under /api/v1. Authentication is the Golden
-| Module reference: login is public and throttled; every other endpoint is
-| protected by the Sanctum bearer-token guard.
+| Module reference: register and login are public and throttled; every other
+| endpoint is protected by the Sanctum bearer-token guard.
 |
 */
 
 Route::prefix('v1')->group(function (): void {
     // Public
+    Route::post('register', [AuthController::class, 'register'])
+        ->middleware('throttle:6,1')
+        ->name('api.v1.register');
+
     Route::post('login', [AuthController::class, 'login'])
         ->middleware('throttle:6,1')
         ->name('api.v1.login');

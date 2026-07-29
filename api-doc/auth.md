@@ -2,7 +2,7 @@
 
 **Module:** A — Identity & Access (Auth) · **Type:** Supporting (Golden Module)
 **Base path:** `/api/v1` · **Auth:** Bearer token (Laravel Sanctum)
-**Status:** Implemented, tested (19 passing), Pint clean.
+**Status:** Implemented, tested (33 passing), Pint clean.
 
 This document is the implementation-accurate contract for the Auth API. It is the reference (Golden Module) other modules mirror. Complete enough to consume or re-implement without further clarification.
 
@@ -10,9 +10,10 @@ This document is the implementation-accurate contract for the Auth API. It is th
 
 ## 1. Overview
 
-Token-based authentication for the Address Book API. `login` is the only public endpoint; it verifies credentials and issues a Sanctum personal access token. Protected endpoints require that token. This module exposes only the authenticated identity (`UserId`) to other modules — no internal details.
+Token-based authentication for the Address Book API. `register` and `login` are the public endpoints: both issue a Sanctum personal access token. Protected endpoints require that token. This module exposes only the authenticated identity (`UserId`) to other modules — no internal details.
 
-- No registration endpoint (users exist via the seeder).
+- Registration is public and self-service; accounts may also be pre-seeded.
+- Both `register` and `login` return the same `{ user, token, token_type }` shape, so the client can treat a fresh registration as an immediate login.
 - Tokens use Sanctum defaults (no custom TTL).
 
 ---
@@ -21,11 +22,12 @@ Token-based authentication for the Address Book API. `login` is the only public 
 
 | Operation | Method & Path | Access | Success | Route name |
 |-----------|---------------|--------|---------|------------|
+| Register | `POST /api/v1/register` | Public (throttled) | 201 | `api.v1.register` |
 | Login | `POST /api/v1/login` | Public (throttled) | 200 | `api.v1.login` |
 | Current user | `GET /api/v1/me` | Protected | 200 | `api.v1.me` |
 | Logout | `POST /api/v1/logout` | Protected | 200 | `api.v1.logout` |
 
-**Throttle:** login is rate-limited to **6 requests/minute** per client; the 7th returns `429`.
+**Throttle:** the public endpoints (`register`, `login`) are each rate-limited to **6 requests/minute** per client; the 7th returns `429`.
 
 ---
 
@@ -57,7 +59,55 @@ Send `Accept: application/json`; write endpoints send `Content-Type: application
 
 ---
 
-## 5. Login — `POST /api/v1/login`
+## 5. Register — `POST /api/v1/register`
+
+Public, throttled. Creates a user, then issues a token so the client is logged in immediately.
+
+### Request body
+
+| Field | Type | Rules |
+|-------|------|-------|
+| name | string | required, max 255 |
+| email | string | required, valid email, max 255, **unique** (not already registered) |
+| password | string | required, min 8, must match `password_confirmation` |
+| password_confirmation | string | required, must equal `password` |
+| device_name | string | optional; max 255 — labels the issued token (defaults to the user agent, then `api-token`) |
+
+**Example**
+```json
+{ "name": "Jane Doe", "email": "jane@example.com", "password": "password123", "password_confirmation": "password123", "device_name": "web" }
+```
+
+**Response — 201**
+```json
+{
+  "success": true,
+  "message": "Registered successfully.",
+  "data": {
+    "user": { "id": 2, "name": "Jane Doe", "email": "jane@example.com" },
+    "token": "2|plainTextTokenValue...",
+    "token_type": "Bearer"
+  }
+}
+```
+
+Use `data.token` as `Authorization: Bearer <token>` immediately — no separate login call is required.
+
+**Duplicate email / weak password / mismatch — 422**
+```json
+{
+  "success": false,
+  "message": "The given data was invalid.",
+  "errors": {
+    "email": ["The email has already been taken."],
+    "password": ["The password field confirmation does not match."]
+  }
+}
+```
+
+---
+
+## 6. Login — `POST /api/v1/login`
 
 ### Request body
 
@@ -98,7 +148,7 @@ Use the returned `data.token` as `Authorization: Bearer <token>` on protected en
 
 ---
 
-## 6. Current User — `GET /api/v1/me`
+## 7. Current User — `GET /api/v1/me`
 
 Requires `Authorization: Bearer <token>`.
 
@@ -113,7 +163,7 @@ Requires `Authorization: Bearer <token>`.
 
 ---
 
-## 7. Logout — `POST /api/v1/logout`
+## 8. Logout — `POST /api/v1/logout`
 
 Requires `Authorization: Bearer <token>`. Revokes the token backing the current request.
 
@@ -126,21 +176,21 @@ After logout the same token is rejected with `401` on subsequent requests.
 
 ---
 
-## 8. Error Responses
+## 9. Error Responses
 
 | Condition | Status | message | errors |
 |-----------|--------|---------|--------|
-| Invalid credentials | 422 | `The given data was invalid.` | `email` → messages |
-| Validation failure (missing/malformed fields) | 422 | `The given data was invalid.` | field → messages |
+| Invalid credentials (login) | 422 | `The given data was invalid.` | `email` → messages |
+| Validation failure (missing/malformed/duplicate email/password mismatch) | 422 | `The given data was invalid.` | field → messages |
 | No/invalid/revoked token on protected route | 401 | `Unauthenticated.` | null |
-| Too many login attempts | 429 | throttle message | null |
+| Too many attempts (register/login) | 429 | throttle message | null |
 | Unexpected failure | 500 | `Server error.` (internals hidden in production) | null |
 
 ---
 
-## 9. Module-Specific Standards
+## 10. Module-Specific Standards
 
-- Layered flow: Route → Form Request → Controller → Service → Model → Resource. `AuthController` is thin; credential verification and token lifecycle live in `AuthService`.
+- Layered flow: Route → Form Request → Controller → Service → Model → Resource. `AuthController` is thin; account creation, credential verification, and token lifecycle live in `AuthService`.
 - Output via `UserResource` through the shared `ApiResponse` envelope; failures via the central exception handler.
-- Security: passwords hashed; sensitive fields hidden; login throttled; no secrets or tokens logged.
+- Security: passwords hashed via the model's `hashed` cast; sensitive fields hidden; register/login throttled; no secrets or tokens logged.
 - Cross-module capability: exposes the authenticated `UserId` (identity by reference) — consumed by the Address Book module for ownership stamping. No other internal is shared.

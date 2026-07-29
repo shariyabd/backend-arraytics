@@ -180,7 +180,7 @@ Base path: `/api/v1`. Uniform envelope: `{ success, message, data }` (or `{ succ
 
 | Module | Endpoints |
 |--------|-----------|
-| Auth | `POST /login` (public, throttled), `GET /me`, `POST /logout` (protected) |
+| Auth | `POST /register`, `POST /login` (public, throttled), `GET /me`, `POST /logout` (protected) |
 | Address Book | `GET/POST /contacts`, `GET/PUT/PATCH/DELETE /contacts/{id}` (all protected) |
 
 Full request/response/validation/error contracts per module:

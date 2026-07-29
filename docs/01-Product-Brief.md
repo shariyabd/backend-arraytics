@@ -38,7 +38,6 @@ This brief covers the **backend** scope.
 **Out of scope**
 
 - Rendering Blade templates or any frontend views/logic.
-- User self-registration (users are created via seeder only).
 - Accepting `created_by` from client input.
 - Exposing unnecessary DB fields or mixing business logic into controllers.
 
@@ -60,11 +59,11 @@ This brief covers the **backend** scope.
 
 ### Authentication
 
+- `POST /api/v1/register` — public, **throttled 6/min**. Creates a user (name, email, confirmed password) and returns a Sanctum bearer token so the client is signed in immediately (`201`).
 - `POST /api/v1/login` — public, **throttled 6/min**. Validates email/password, returns a Sanctum bearer token.
 - `GET /api/v1/me` — protected, returns the authenticated user.
 - `POST /api/v1/logout` — protected, revokes the current token.
-- **No registration** — users are provisioned by the seeder.
-- Sanctum default token TTL. Invalid / missing / revoked token → `401`.
+- Users can also be provisioned by the seeder. Sanctum default token TTL. Invalid / missing / revoked token → `401`.
 
 ### Contact CRUD (all protected)
 
@@ -174,8 +173,9 @@ Every endpoint returns this shape — success carries `data`, errors carry `erro
 
 ## 7. Acceptance criteria
 
+- [ ] A visitor can self-register at `POST /api/v1/register` and receive a valid token (`201`); duplicate email and unconfirmed/short passwords are rejected with `422`.
 - [ ] User can authenticate at `POST /api/v1/login` and receive a valid token; `/me` and `/logout` work under auth.
-- [ ] The login endpoint is throttled at 6/min; there is no registration endpoint.
+- [ ] The public `register` and `login` endpoints are throttled at 6/min.
 - [ ] All contact CRUD endpoints require authentication.
 - [ ] `created_by` is always derived from the authenticated user and is immutable.
 - [ ] All validation rules are enforced via Form Requests (including the `website` optional case).

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
+use App\Http\Requests\Api\V1\Auth\RegisterRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Services\Auth\AuthService;
 use App\Support\ApiResponse;
@@ -19,6 +20,24 @@ use Illuminate\Http\Request;
 class AuthController extends Controller
 {
     public function __construct(private readonly AuthService $authService) {}
+
+    /**
+     * Register a new user and return a bearer token. (Public)
+     */
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        $result = $this->authService->register([
+            'name' => $request->string('name')->value(),
+            'email' => $request->string('email')->value(),
+            'password' => $request->string('password')->value(),
+        ], $request->deviceName());
+
+        return ApiResponse::success([
+            'user' => new UserResource($result['user']),
+            'token' => $result['token'],
+            'token_type' => 'Bearer',
+        ], 'Registered successfully.', 201);
+    }
 
     /**
      * Authenticate a user and return a bearer token. (Public)

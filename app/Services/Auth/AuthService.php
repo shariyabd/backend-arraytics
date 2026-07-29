@@ -50,6 +50,32 @@ class AuthService
     }
 
     /**
+     * Register a new user and issue a personal access token.
+     *
+     * The password is hashed by the model's `hashed` cast on assignment.
+     *
+     * @param  array{name: string, email: string, password: string}  $attributes
+     * @return array{user: User, token: string}
+     */
+    public function register(array $attributes, string $deviceName): array
+    {
+        $user = User::create([
+            'name' => $attributes['name'],
+            'email' => $attributes['email'],
+            'password' => $attributes['password'],
+        ]);
+
+        $token = $this->issueToken($user, $deviceName);
+
+        Log::info('User registered.', ['user_id' => $user->id]);
+
+        return [
+            'user' => $user,
+            'token' => $token->plainTextToken,
+        ];
+    }
+
+    /**
      * Revoke the access token backing the current request.
      */
     public function logout(User $user): void

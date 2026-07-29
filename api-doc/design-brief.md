@@ -18,7 +18,7 @@ A single-page web app for managing an **address book**. An authenticated user lo
 ## 2. Users, roles & access model
 
 - **One user role.** No admin/user distinction, no permissions system. Every logged-in user has the same capabilities.
-- **No self-service registration.** Users are pre-provisioned. The app has **no sign-up screen** — only login. (A seeded account exists: `test@example.com` / `password`.)
+- **Self-service registration.** Anyone can create an account from a sign-up screen — no admin approval step. A newly registered user is signed in immediately. (A seeded account also exists for convenience: `test@example.com` / `password`.)
 - **See-all visibility.** Any authenticated user can view, edit, and delete **any** contact. Ownership (`created_by`) is recorded as metadata but is **not** an access boundary — do not design "my contacts vs. others" separation or per-row permission states.
 - **Everything except login requires authentication.** Unauthenticated access to any contact screen must route the user to login.
 
@@ -39,9 +39,21 @@ Design these screens. Each entry lists purpose, key content, actions, and requir
   - *Field validation* — email required & valid format; password required.
   - *Rate-limited* — after too many rapid attempts the server blocks further tries for ~1 minute; show a "too many attempts, try again shortly" message and disable submit.
 - **On success:** store the token, redirect to the Contacts list.
-- **Note:** no "forgot password," no "create account," no "remember me" backend support — omit them or mark clearly as non-functional.
+- **Note:** include a link to **Register** for users without an account. There is no "forgot password" or "remember me" backend support — omit them or mark clearly as non-functional.
 
-### 3.2 Contacts List (home, after login)
+### 3.2 Register (Sign up)
+- **Purpose:** create a new account and get signed in immediately.
+- **Fields:** name, email, password, confirm password.
+- **Actions:** Submit ("Create account"); link back to **Login**.
+- **States:**
+  - *Default / editing.*
+  - *Submitting* (disable submit, show progress).
+  - *Field validation* — name required; email required & valid format; password required (min 8) and must match confirm password. Surface server field errors inline.
+  - *Email already taken* — the email is already registered; show an inline error on the email field and point the user to Login.
+  - *Rate-limited* — after too many rapid attempts the server blocks further tries for ~1 minute; show a "too many attempts, try again shortly" message and disable submit.
+- **On success:** the server returns a token (same shape as login) — store it and redirect straight to the Contacts list, no separate login step.
+
+### 3.3 Contacts List (home, after login)
 - **Purpose:** the primary workspace — browse, search, filter, paginate, and jump into actions.
 - **Content:** a table/list of contacts showing at least: name, phone, email, gender, age, nationality (website optional to show). Each row has **Edit** and **Delete** actions; row or a **View** action opens details.
 - **Controls:**
@@ -57,30 +69,30 @@ Design these screens. Each entry lists purpose, key content, actions, and requir
   - *Error* (list failed to load — retry affordance).
 - **UX notes:** search/filter should feel server-driven (results reflect the whole dataset, not just the current page). Reflect active filters visibly and make them clearable. Preserve filters when paginating.
 
-### 3.3 Contact Details (View)
+### 3.4 Contact Details (View)
 - **Purpose:** read-only view of one contact's full record.
 - **Content:** all fields — name, phone, email, website (linkable if present, may be empty), gender, age, nationality, and (optional) created date.
 - **Actions:** Edit, Delete, Back to list.
 - **States:** loading; loaded; **not found** (the contact was deleted or the id is invalid → show a "contact not found" state, not a crash).
 
-### 3.4 Create Contact
+### 3.5 Create Contact
 - **Purpose:** add a new contact.
 - **Form fields:** name, phone, email, website, gender, age, nationality (see §4 for rules). **Do not** include any "owner"/"created by" field — it is set by the server and must never be a form input.
 - **Actions:** Save (create), Cancel.
 - **States:** editing; per-field validation errors (server returns field-level messages on 422 — surface them inline); submitting; success (toast + return to list or details); auth-expired (→ login).
 
-### 3.5 Edit Contact
+### 3.6 Edit Contact
 - **Purpose:** update an existing contact.
 - **Same form as Create**, pre-filled. Supports partial edits (changing a subset of fields is valid).
 - **Owner and created date are immutable** — never editable; do not render owner as an input.
 - **States:** loading the record; editing; validation errors; submitting; success; not-found (record gone).
 
-### 3.6 Delete Contact (confirmation)
+### 3.7 Delete Contact (confirmation)
 - **Purpose:** remove a contact safely. Deletes are permanent (no soft-delete/restore).
 - **Pattern:** confirmation dialog before deleting.
 - **States:** confirming; deleting; success (remove from list + toast); already-gone (treat "not found" gracefully — refresh the list).
 
-### 3.7 Global: Session expiry / logout
+### 3.8 Global: Session expiry / logout
 - **Logout action** available in the app chrome (e.g., header menu) — revokes the token and returns to login.
 - **Auto-handling:** if any request comes back unauthenticated (expired/revoked/missing token), clear the session and redirect to login with a brief "please log in again" message.
 
@@ -144,7 +156,7 @@ Design for the fact that results are **whole-dataset** server responses: changin
 - Every list/detail/form load has explicit **loading**, **empty**, and **error** states — no blank screens.
 - Destructive actions (delete) always confirm first.
 - Preserve user input on validation errors.
-- Auth-gate the whole app: only Login is reachable while logged out.
+- Auth-gate the whole app: only Login and Register are reachable while logged out.
 
 ---
 
@@ -153,7 +165,7 @@ Design for the fact that results are **whole-dataset** server responses: changin
 - **BR-1 — Ownership is invisible input.** Never show an owner/creator picker in create/edit forms. The server assigns it. You may *display* the creator on the details view (read-only) if useful, but it is not editable.
 - **BR-2 — Owner is immutable.** Editing a contact never changes who created it.
 - **BR-3 — See-all.** No per-record ownership gating in the UI.
-- **BR-4 — Login-only auth.** No registration, password reset, or profile management screens.
+- **BR-4 — Register + login auth.** Public sign-up and login are supported; no password reset or profile management screens.
 - **BR-5 — Hard delete.** No trash/restore flow.
 - **BR-6 — Minimal, safe fields.** Only the fields in §4 exist on a contact; don't invent extra fields (tags, notes, avatars, addresses) — the backend won't store them.
 
@@ -161,7 +173,7 @@ Design for the fact that results are **whole-dataset** server responses: changin
 
 ## 8. Out of scope (do not design)
 
-- Sign-up / registration, password reset, email verification.
+- Password reset, email verification, social/OAuth login.
 - Roles, permissions, sharing, or team features.
 - Soft delete / archive / restore, bulk actions (unless additive and clearly optional).
 - Sorting is **optional** and not backed by a defined contract yet — you may design a sort affordance, but treat it as a nice-to-have that may be deferred.

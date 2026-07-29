@@ -3,7 +3,7 @@
 ## Address Book Management System — Backend
 
 **Version:** 1.0
-**Status:** Implemented, tested, green (19 passing tests).
+**Status:** Implemented, tested, green (33 passing tests).
 **Purpose:** The Authentication module is the **reference implementation** every future module must copy. This document maps the built code to the architecture so a new module can be produced by analogy.
 **Source Documents:** [04-Architecture.md](04-Architecture.md), [05-Guardrails.md](05-Guardrails.md), [api-doc/auth.md](../api-doc/auth.md)
 
@@ -47,15 +47,15 @@ UserResource + ApiResponse ► uniform { success, message, data } envelope
 
 | Layer | Golden Module file | Responsibility |
 |-------|--------------------|----------------|
-| Route | [routes/api.php](../routes/api.php) | `/api/v1` group; public+throttled login, protected me/logout. |
-| Form Request | [app/Http/Requests/Api/V1/Auth/LoginRequest.php](../app/Http/Requests/Api/V1/Auth/LoginRequest.php) | Input validation; no ownership fields accepted. |
+| Route | [routes/api.php](../routes/api.php) | `/api/v1` group; public+throttled register/login, protected me/logout. |
+| Form Request | [RegisterRequest.php](../app/Http/Requests/Api/V1/Auth/RegisterRequest.php) · [LoginRequest.php](../app/Http/Requests/Api/V1/Auth/LoginRequest.php) | Input validation; no ownership fields accepted. |
 | Controller | [app/Http/Controllers/Api/V1/Auth/AuthController.php](../app/Http/Controllers/Api/V1/Auth/AuthController.php) | Thin coordinator; injects service; returns Resource via `ApiResponse`. |
 | Service | [app/Services/Auth/AuthService.php](../app/Services/Auth/AuthService.php) | All business logic; token lifecycle; logging. HTTP-independent. |
 | Model | [app/Models/User.php](../app/Models/User.php) | Aggregate; `$fillable`, `$hidden`, `HasApiTokens`. |
 | Resource | [app/Http/Resources/Api/V1/UserResource.php](../app/Http/Resources/Api/V1/UserResource.php) | Output shaping; exposes only safe fields. |
 | Shared (envelope) | [app/Support/ApiResponse.php](../app/Support/ApiResponse.php) | Uniform success/error envelope; reused by every module. |
 | Shared (errors) | [bootstrap/app.php](../bootstrap/app.php) | Central exception → envelope mapping (422/401/403/404/500). |
-| Feature tests | [tests/Feature/Api/V1/Auth/AuthenticationTest.php](../tests/Feature/Api/V1/Auth/AuthenticationTest.php) | Endpoint contract: happy, validation, auth, revocation, throttle. |
+| Feature tests | [AuthenticationTest.php](../tests/Feature/Api/V1/Auth/AuthenticationTest.php) · [RegistrationTest.php](../tests/Feature/Api/V1/Auth/RegistrationTest.php) | Endpoint contract: happy, validation, auth, revocation, throttle. |
 | Unit tests | [tests/Unit/Services/Auth/AuthServiceTest.php](../tests/Unit/Services/Auth/AuthServiceTest.php) | Service logic in isolation. |
 
 **Namespace convention:** `App\Http\{Controllers,Requests,Resources}\Api\V1\<Feature>\…`, `App\Services\<Feature>\…`. Tests mirror the same path.
@@ -80,7 +80,7 @@ UserResource + ApiResponse ► uniform { success, message, data } envelope
 
 Full contract: [api-doc/auth.md](../api-doc/auth.md).
 
-- **Operations:** `POST /api/v1/login` (public, throttled 6/min), `GET /api/v1/me`, `POST /api/v1/logout` (protected).
+- **Operations:** `POST /api/v1/register` (public, throttled 6/min, 201), `POST /api/v1/login` (public, throttled 6/min), `GET /api/v1/me`, `POST /api/v1/logout` (protected).
 - **Cross-module capability:** exposes the authenticated `UserId` (identity by reference) for the Address Book module — no other internal is shared.
 - **Errors:** 422 (validation/bad credentials), 401 (unauthenticated), 429 (throttle).
 
@@ -104,7 +104,7 @@ Full contract: [api-doc/auth.md](../api-doc/auth.md).
 
 - Sanctum installed and wired; `HasApiTokens` on `User`.
 - All routes registered under `/api/v1`.
-- **Auth slice: 19 tests passing; full suite: 48 tests passing.** Pint clean.
+- **Auth slice: 33 tests passing; full suite: 59 tests passing.** Pint clean.
 - Login failures return 422 (framework convention); token failures return 401 via the Sanctum guard.
 
 ---
