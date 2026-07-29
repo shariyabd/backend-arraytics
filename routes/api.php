@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\Contact\ContactController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,5 +25,8 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('me', [AuthController::class, 'me'])->name('api.v1.me');
         Route::post('logout', [AuthController::class, 'logout'])->name('api.v1.logout');
+
+        Route::apiResource('contacts', ContactController::class)
+            ->names('api.v1.contacts');
     });
 });
