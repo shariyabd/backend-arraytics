@@ -11,6 +11,7 @@ use App\Http\Resources\Api\V1\ContactResource;
 use App\Services\Contact\ContactService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ContactController extends Controller
 {
@@ -18,7 +19,11 @@ class ContactController extends Controller
 
     public function index(ListContactsRequest $request): JsonResponse
     {
-        $contacts = $this->contactService->list($request->filters(), $request->perPage());
+        $contacts = $this->contactService->list(
+            $request->filters(),
+            $request->perPage(),
+            (int) $request->user()->id,
+        );
 
         return ApiResponse::success(
             new ContactCollection($contacts),
@@ -37,9 +42,9 @@ class ContactController extends Controller
         );
     }
 
-    public function show(int $contact): JsonResponse
+    public function show(Request $request, int $contact): JsonResponse
     {
-        $model = $this->contactService->find($contact);
+        $model = $this->contactService->find($contact, (int) $request->user()->id);
 
         return ApiResponse::success(
             new ContactResource($model),
@@ -50,7 +55,7 @@ class ContactController extends Controller
     public function update(UpdateContactRequest $request, int $contact): JsonResponse
     {
         $model = $this->contactService->update(
-            $this->contactService->find($contact),
+            $this->contactService->find($contact, (int) $request->user()->id),
             $request->validated(),
         );
 
@@ -60,9 +65,11 @@ class ContactController extends Controller
         );
     }
 
-    public function destroy(int $contact): JsonResponse
+    public function destroy(Request $request, int $contact): JsonResponse
     {
-        $this->contactService->delete($this->contactService->find($contact));
+        $this->contactService->delete(
+            $this->contactService->find($contact, (int) $request->user()->id),
+        );
 
         return ApiResponse::success(null, 'Contact deleted.');
     }

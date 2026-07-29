@@ -117,7 +117,6 @@ class RegistrationTest extends TestCase
 
     public function test_registration_endpoint_is_rate_limited(): void
     {
-        // Route allows 6 attempts per minute; the 7th must be throttled.
         for ($attempt = 0; $attempt < 6; $attempt++) {
             $this->postJson('/api/v1/register', $this->validPayload(['email' => 'dup@example.com']));
         }

@@ -52,8 +52,6 @@ class AuthService
     /**
      * Register a new user and issue a personal access token.
      *
-     * The password is hashed by the model's `hashed` cast on assignment.
-     *
      * @param  array{name: string, email: string, password: string}  $attributes
      * @return array{user: User, token: string}
      */

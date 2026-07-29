@@ -231,7 +231,7 @@ Route → Form Request → Controller → Service → Model → API Resource/DTO
 
 Implemented as isolated defaults; full detail in [api-doc/address-book.md](api-doc/address-book.md).
 
-- **OQ-1 — visibility:** **see-all**. Any authenticated user may read/update/delete any contact; `created_by` is audit metadata, not an access boundary (no 403 path). Single policy point: the query scope in `ContactService`.
+- **OQ-1 — visibility:** **owner-only**. A user may read/update/delete only the contacts they created; another user's contact resolves to `404` (existence is not leaked), so there is still no `403` path. `created_by` is both the ownership stamp and the access boundary. Single policy point: the owner-scoped query in `ContactService`.
 - **OQ-3 — age:** integer `1–150` (`Contact::MIN_AGE`/`MAX_AGE`).
 - **OQ-4 — gender:** `Male | Female | Other` (`Contact::GENDERS`).
 - **OQ-5 — nationality:** free-text (max 255).

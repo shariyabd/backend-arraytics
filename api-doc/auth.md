@@ -2,7 +2,7 @@
 
 **Module:** A — Identity & Access (Auth) · **Type:** Supporting (Golden Module)
 **Base path:** `/api/v1` · **Auth:** Bearer token (Laravel Sanctum)
-**Status:** Implemented, tested (33 passing), Pint clean.
+**Status:** Implemented, tested (28 passing), Pint clean.
 
 This document is the implementation-accurate contract for the Auth API. It is the reference (Golden Module) other modules mirror. Complete enough to consume or re-implement without further clarification.
 

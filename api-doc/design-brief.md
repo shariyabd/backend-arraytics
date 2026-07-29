@@ -19,7 +19,7 @@ A single-page web app for managing an **address book**. An authenticated user lo
 
 - **One user role.** No admin/user distinction, no permissions system. Every logged-in user has the same capabilities.
 - **Self-service registration.** Anyone can create an account from a sign-up screen — no admin approval step. A newly registered user is signed in immediately. (A seeded account also exists for convenience: `test@example.com` / `password`.)
-- **See-all visibility.** Any authenticated user can view, edit, and delete **any** contact. Ownership (`created_by`) is recorded as metadata but is **not** an access boundary — do not design "my contacts vs. others" separation or per-row permission states.
+- **Owner-only visibility.** Each user sees, edits, and deletes **only the contacts they created**. The address book is effectively private per user — a freshly registered user starts with an empty list. There is no "shared" or "all contacts" view, and no way to reach another user's contact (the server returns "not found").
 - **Everything except login requires authentication.** Unauthenticated access to any contact screen must route the user to login.
 
 ---
@@ -164,7 +164,7 @@ Design for the fact that results are **whole-dataset** server responses: changin
 
 - **BR-1 — Ownership is invisible input.** Never show an owner/creator picker in create/edit forms. The server assigns it. You may *display* the creator on the details view (read-only) if useful, but it is not editable.
 - **BR-2 — Owner is immutable.** Editing a contact never changes who created it.
-- **BR-3 — See-all.** No per-record ownership gating in the UI.
+- **BR-3 — Owner-only.** A user only ever sees their own contacts; a new account starts empty. Design the empty state as a normal first-run experience, not an error.
 - **BR-4 — Register + login auth.** Public sign-up and login are supported; no password reset or profile management screens.
 - **BR-5 — Hard delete.** No trash/restore flow.
 - **BR-6 — Minimal, safe fields.** Only the fields in §4 exist on a contact; don't invent extra fields (tags, notes, avatars, addresses) — the backend won't store them.

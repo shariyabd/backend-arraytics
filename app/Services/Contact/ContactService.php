@@ -12,10 +12,9 @@ class ContactService
      * @param  array{search?: ?string, gender?: ?string, nationality?: ?string, min_age?: ?int, max_age?: ?int}  $filters
      * @return LengthAwarePaginator<int, Contact>
      */
-    public function list(array $filters, int $perPage): LengthAwarePaginator
+    public function list(array $filters, int $perPage, int $ownerId): LengthAwarePaginator
     {
-        // Visibility scope (OQ-1) is see-all; scope queries here to switch to own-only.
-        $query = Contact::query();
+        $query = Contact::query()->where('created_by', $ownerId);
 
         if (! empty($filters['search'])) {
             $search = $filters['search'];
@@ -59,9 +58,9 @@ class ContactService
         return $contact;
     }
 
-    public function find(int $id): Contact
+    public function find(int $id, int $ownerId): Contact
     {
-        return Contact::query()->findOrFail($id);
+        return Contact::query()->where('created_by', $ownerId)->findOrFail($id);
     }
 
     /**

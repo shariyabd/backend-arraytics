@@ -2,7 +2,7 @@
 
 **Module:** B — Address Book (Contact Management) · **Type:** Core context
 **Base path:** `/api/v1` · **Auth:** Bearer token (Laravel Sanctum)
-**Status:** Implemented, tested (48 passing), Pint clean.
+**Status:** Implemented, tested (36 passing), Pint clean.
 
 This document is the implementation-accurate contract for the Contact API. It is complete enough to consume or re-implement the module without further clarification.
 
@@ -13,7 +13,7 @@ This document is the implementation-accurate contract for the Contact API. It is
 A secure, paginated, searchable REST API for managing address-book contacts. Every contact is owned by the authenticated user who created it (`created_by`), stamped server-side and never accepted from the client. Responses are JSON only and always use the uniform envelope.
 
 - All endpoints require a valid bearer token (`auth:sanctum`). There is no public contact endpoint.
-- **Visibility scope:** see-all — any authenticated user may read/update/delete any contact. `created_by` is audit metadata, not an access boundary. (No `403` path in this version.)
+- **Visibility scope:** owner-only — a user may list, read, update, and delete only the contacts they created. `created_by` is the access boundary. A request for another user's contact resolves to `404` (existence is not leaked), so there is no `403` path.
 
 ---
 
@@ -25,7 +25,7 @@ A secure, paginated, searchable REST API for managing address-book contacts. Eve
 | Token source | `POST /api/v1/login` (Auth module) returns `data.token`. |
 | Guard | `auth:sanctum` on every contact route. |
 | Missing/invalid token | `401 Unauthenticated.` |
-| Ownership | `created_by` is set from the token identity on create; immutable on update; never a request field. |
+| Ownership | `created_by` is set from the token identity on create; immutable on update; never a request field. It scopes every read/write — a user only ever sees or mutates their own contacts. |
 
 ---
 
@@ -71,7 +71,7 @@ All requests should send `Accept: application/json`. Write endpoints send `Conte
 | gender | string | One of `Male`, `Female`, `Other`. |
 | age | integer | |
 | nationality | string | Free-text. |
-| created_by | integer | Owning `UserId` (read-only, audit metadata). |
+| created_by | integer | Owning `UserId` (read-only). Scopes access — only the owner may see the contact. |
 | created_at | string | ISO-8601 timestamp. |
 
 ---
@@ -141,7 +141,7 @@ All requests should send `Accept: application/json`. Write endpoints send `Conte
 | per_page | integer | 1–100 | 15 |
 | page | integer | `>= 1` | 1 |
 
-Filters and search are combinable (ANDed) and applied **before** pagination.
+Returns only the authenticated user's own contacts. Filters and search are combinable (ANDed) and applied **before** pagination.
 
 **Response — 200**
 ```json
@@ -170,7 +170,7 @@ Filters and search are combinable (ANDed) and applied **before** pagination.
 ```json
 { "success": true, "message": "Contact retrieved.", "data": { "id": 1, "...": "..." } }
 ```
-Missing id → `404`.
+Missing id, or a contact owned by another user → `404`.
 
 ---
 
@@ -178,7 +178,7 @@ Missing id → `404`.
 
 Partial updates supported: send only the fields to change. Each field uses the same rules as Create but is optional (`sometimes`); when present it must still be valid (e.g. `name` cannot be sent empty).
 
-`created_by` and `created_at` are never changed.
+`created_by` and `created_at` are never changed. Updating a contact owned by another user → `404`.
 
 **Example**
 ```json
@@ -198,7 +198,7 @@ Partial updates supported: send only the fields to change. Each field uses the s
 ```json
 { "success": true, "message": "Contact deleted.", "data": null }
 ```
-Missing id → `404`.
+Missing id, or a contact owned by another user → `404`.
 
 ---
 
@@ -208,7 +208,7 @@ Missing id → `404`.
 |-----------|--------|---------|--------|
 | No/invalid token | 401 | `Unauthenticated.` | null |
 | Validation failure | 422 | `The given data was invalid.` | field → messages |
-| Contact not found | 404 | `Resource not found.` | null |
+| Contact not found or not owned by the caller | 404 | `Resource not found.` | null |
 | Unexpected failure | 500 | `Server error.` (internals hidden in production) | null |
 
 **422 example**
@@ -233,7 +233,7 @@ Missing id → `404`.
 - **BR-B4:** Search matches name/email/phone (partial, case-insensitive); filters combinable (AND); applied before pagination.
 - **BR-B5:** Responses expose only the fields in §5; nothing sensitive or internal.
 - **BR-B6:** Missing contact → 404; validation failure → 422 with field messages.
-- **BR-B7:** Visibility is see-all (OQ-1); `created_by` is audit metadata, not an access boundary.
+- **BR-B7:** Owner-only visibility (OQ-1): every list/read/update/delete is scoped to `created_by` = the authenticated user; another user's contact resolves to 404 (no 403 path).
 
 ---
 
@@ -248,7 +248,7 @@ Missing id → `404`.
 
 | ID | Decision |
 |----|----------|
-| OQ-1 | See-all visibility (no 403). |
+| OQ-1 | Owner-only visibility — reads/writes scoped to `created_by`; others → 404 (no 403). |
 | OQ-3 | Age range 1–150. |
 | OQ-4 | Gender: `Male`, `Female`, `Other`. |
 | OQ-5 | Nationality: free-text (max 255). |

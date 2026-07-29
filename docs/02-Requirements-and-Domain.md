@@ -18,7 +18,7 @@ Turn the product brief into precise, buildable rules and a shared domain vocabul
 Business capabilities, grouped. (Not architecture — see [04-Architecture.md](04-Architecture.md).)
 
 - **Authentication** — public self-service registration (name + email + confirmed password → 201) and public login (email + password), both issuing a Sanctum token; logout (revoke); bearer auth on all protected endpoints; invalid/missing/expired/revoked token → 401. The public `register` and `login` endpoints are throttled 6/min.
-- **Ownership** — `created_by` stamped server-side from the authenticated user on create; never client-supplied; immutable thereafter (audit metadata only, not an access boundary).
+- **Ownership** — `created_by` stamped server-side from the authenticated user on create; never client-supplied; immutable thereafter. It is the access boundary: a user sees and mutates only their own contacts.
 - **Contact CRUD** — create (201), list (paginated), view single (404 if missing), update (editable fields only), delete (404 if missing).
 - **Search / Filter / Pagination** — keyword search across name, email, phone (partial, case-insensitive); filters on gender, nationality, age range (min/max), combinable (ANDed); server-side pagination with metadata.
 - **Validation** — Form Request classes; failures return 422 with field-level messages before any persistence.
@@ -35,7 +35,7 @@ Business capabilities, grouped. (Not architecture — see [04-Architecture.md](0
 - **BR-4 — Validation gate:** a request failing validation is rejected (422) before any persistence.
 - **BR-5 — Data exposure limits:** responses expose only required fields; sensitive attributes (e.g. password, token) are hidden.
 - **BR-6 — Combinable filters:** search and multiple filters may be applied together and are ANDed.
-- **BR-7 — See-all visibility:** any authenticated user may read/update/delete any contact; `created_by` is audit metadata, not an access boundary (no 403 path). See OQ-1.
+- **BR-7 — Owner-only visibility:** a user may read/update/delete only the contacts they created; another user's contact resolves to 404 (existence not leaked), so there is no 403 path. See OQ-1.
 
 ---
 
@@ -44,7 +44,7 @@ Business capabilities, grouped. (Not architecture — see [04-Architecture.md](0
 Stated once. Each was validated during build (resolutions in §5 where an open question was attached).
 
 - **A-1 — Single role:** one user role only; no admin/user distinction, no roles/permissions system, no elevated actor.
-- **A-2 — See-all access:** users access all contacts regardless of `created_by` (resolved — see OQ-1 / BR-7).
+- **A-2 — Owner-scoped access:** a user accesses only the contacts they created; `created_by` is the access boundary (resolved — see OQ-1 / BR-7).
 - **A-3 — Public registration:** any visitor may self-register (resolved — see OQ-8); users may also be pre-provisioned via the seeder.
 - **A-4 — Hard deletes:** removal is permanent; no soft-delete / recoverable state.
 - **A-5 — Token lifetime:** Sanctum default TTL; no custom expiry policy (resolved — see OQ-10).
@@ -61,7 +61,7 @@ These were surfaced during requirements analysis and **decided during build**. T
 
 | ID | Question | Resolution |
 |----|----------|------------|
-| **OQ-1** | Can a user read/update/delete only their own contacts, or all? | **See-all.** Any authenticated user may read/update/delete any contact; `created_by` is audit metadata, not an access boundary (no 403 path). |
+| **OQ-1** | Can a user read/update/delete only their own contacts, or all? | **Owner-only.** A user may read/update/delete only the contacts they created; another user's contact resolves to 404 (no 403 path). `created_by` is the access boundary. |
 | **OQ-2** | Is a logout / token-revocation endpoint required? | **Provided.** Logout revokes the current token → subsequent requests get 401. |
 | **OQ-3** | What is the allowed age range? | **Integer 1–150.** |
 | **OQ-4** | What are the allowed gender values? | **Closed set: `Male | Female | Other`.** |
@@ -153,7 +153,7 @@ Single user role only — no Administrator or privileged actor (A-1).
 | **Contact** | A recorded person — name, phone, email, website, gender, age, nationality. |
 | **User** | An authenticated actor who creates and manages Contacts. |
 | **Guest** | An un-authenticated visitor able only to attempt login. |
-| **Owner** | The User who created a given Contact. Ownership never transfers (and, under see-all, does not gate access). |
+| **Owner** | The User who created a given Contact. Ownership never transfers and gates access — only the owner may see or mutate the contact. |
 | **OwnershipStamp** (`created_by`) | The immutable link recording which User created a Contact; assigned server-side, never client-supplied. |
 | **Credentials** | The email + secret a User presents to authenticate. |
 | **Access Token** | Proof of an authenticated session, presented on each protected action. |

@@ -13,6 +13,17 @@ class ContactManagementTest extends TestCase
     use RefreshDatabase;
 
     /**
+     * Create a user, authenticate as them, and return them.
+     */
+    private function actingUser(): User
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        return $user;
+    }
+
+    /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
@@ -42,8 +53,7 @@ class ContactManagementTest extends TestCase
 
     public function test_authenticated_user_can_create_a_contact(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $user = $this->actingUser();
 
         $response = $this->postJson('/api/v1/contacts', $this->validPayload());
 
@@ -68,9 +78,8 @@ class ContactManagementTest extends TestCase
 
     public function test_created_by_is_taken_from_the_token_and_client_value_is_ignored(): void
     {
-        $user = User::factory()->create();
+        $user = $this->actingUser();
         $attacker = User::factory()->create();
-        Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/v1/contacts', $this->validPayload([
             'created_by' => $attacker->id,
@@ -82,7 +91,7 @@ class ContactManagementTest extends TestCase
 
     public function test_website_is_optional(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $response = $this->postJson('/api/v1/contacts', $this->validPayload(['website' => null]));
 
@@ -91,7 +100,7 @@ class ContactManagementTest extends TestCase
 
     public function test_store_validates_required_fields(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $response = $this->postJson('/api/v1/contacts', []);
 
@@ -102,7 +111,7 @@ class ContactManagementTest extends TestCase
 
     public function test_store_rejects_invalid_field_values(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $response = $this->postJson('/api/v1/contacts', $this->validPayload([
             'email' => 'not-an-email',
@@ -115,10 +124,10 @@ class ContactManagementTest extends TestCase
             ->assertJsonValidationErrors(['email', 'website', 'gender', 'age']);
     }
 
-    public function test_authenticated_user_can_view_a_contact(): void
+    public function test_authenticated_user_can_view_their_own_contact(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        $contact = Contact::factory()->create();
+        $user = $this->actingUser();
+        $contact = Contact::factory()->create(['created_by' => $user->id]);
 
         $response = $this->getJson("/api/v1/contacts/{$contact->id}");
 
@@ -127,7 +136,7 @@ class ContactManagementTest extends TestCase
 
     public function test_viewing_a_missing_contact_returns_404(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $response = $this->getJson('/api/v1/contacts/999999');
 
@@ -135,10 +144,10 @@ class ContactManagementTest extends TestCase
             ->assertJson(['success' => false, 'message' => 'Resource not found.']);
     }
 
-    public function test_authenticated_user_can_update_editable_fields(): void
+    public function test_authenticated_user_can_update_their_own_editable_fields(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        $contact = Contact::factory()->create(['name' => 'Old Name']);
+        $user = $this->actingUser();
+        $contact = Contact::factory()->create(['created_by' => $user->id, 'name' => 'Old Name']);
 
         $response = $this->putJson("/api/v1/contacts/{$contact->id}", ['name' => 'New Name']);
 
@@ -151,42 +160,41 @@ class ContactManagementTest extends TestCase
 
     public function test_update_leaves_created_by_and_created_at_unchanged(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        $owner = User::factory()->create();
-        $contact = Contact::factory()->create(['created_by' => $owner->id]);
+        $user = $this->actingUser();
+        $contact = Contact::factory()->create(['created_by' => $user->id]);
         $originalCreatedAt = $contact->created_at;
 
         $this->putJson("/api/v1/contacts/{$contact->id}", [
             'name' => 'Changed',
             'created_by' => User::factory()->create()->id,
-        ])->assertOk()->assertJsonPath('data.created_by', $owner->id);
+        ])->assertOk()->assertJsonPath('data.created_by', $user->id);
 
         $contact->refresh();
-        $this->assertSame($owner->id, $contact->created_by);
+        $this->assertSame($user->id, $contact->created_by);
         $this->assertEquals($originalCreatedAt->timestamp, $contact->created_at->timestamp);
     }
 
     public function test_updating_a_missing_contact_returns_404(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $this->putJson('/api/v1/contacts/999999', ['name' => 'X'])->assertStatus(404);
     }
 
     public function test_update_rejects_invalid_values(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        $contact = Contact::factory()->create();
+        $user = $this->actingUser();
+        $contact = Contact::factory()->create(['created_by' => $user->id]);
 
         $this->putJson("/api/v1/contacts/{$contact->id}", ['gender' => 'Nope'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('gender');
     }
 
-    public function test_authenticated_user_can_delete_a_contact(): void
+    public function test_authenticated_user_can_delete_their_own_contact(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        $contact = Contact::factory()->create();
+        $user = $this->actingUser();
+        $contact = Contact::factory()->create(['created_by' => $user->id]);
 
         $response = $this->deleteJson("/api/v1/contacts/{$contact->id}");
 
@@ -196,15 +204,65 @@ class ContactManagementTest extends TestCase
 
     public function test_deleting_a_missing_contact_returns_404(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $this->deleteJson('/api/v1/contacts/999999')->assertStatus(404);
     }
 
+    public function test_index_only_returns_the_authenticated_users_contacts(): void
+    {
+        $user = $this->actingUser();
+        Contact::factory()->count(3)->create(['created_by' => $user->id]);
+        Contact::factory()->count(5)->create(['created_by' => User::factory()->create()->id]);
+
+        $this->getJson('/api/v1/contacts')
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 3)
+            ->assertJsonCount(3, 'data.data');
+    }
+
+    public function test_a_new_user_with_no_contacts_sees_an_empty_list(): void
+    {
+        Contact::factory()->count(10)->create(['created_by' => User::factory()->create()->id]);
+
+        $this->actingUser();
+
+        $this->getJson('/api/v1/contacts')
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 0)
+            ->assertJsonCount(0, 'data.data');
+    }
+
+    public function test_a_user_cannot_view_another_users_contact(): void
+    {
+        $this->actingUser();
+        $othersContact = Contact::factory()->create(['created_by' => User::factory()->create()->id]);
+
+        $this->getJson("/api/v1/contacts/{$othersContact->id}")->assertStatus(404);
+    }
+
+    public function test_a_user_cannot_update_another_users_contact(): void
+    {
+        $this->actingUser();
+        $othersContact = Contact::factory()->create(['created_by' => User::factory()->create()->id, 'name' => 'Untouched']);
+
+        $this->putJson("/api/v1/contacts/{$othersContact->id}", ['name' => 'Hacked'])->assertStatus(404);
+        $this->assertDatabaseHas('contacts', ['id' => $othersContact->id, 'name' => 'Untouched']);
+    }
+
+    public function test_a_user_cannot_delete_another_users_contact(): void
+    {
+        $this->actingUser();
+        $othersContact = Contact::factory()->create(['created_by' => User::factory()->create()->id]);
+
+        $this->deleteJson("/api/v1/contacts/{$othersContact->id}")->assertStatus(404);
+        $this->assertDatabaseHas('contacts', ['id' => $othersContact->id]);
+    }
+
     public function test_index_returns_paginated_results_with_meta(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        Contact::factory()->count(20)->create();
+        $user = $this->actingUser();
+        Contact::factory()->count(20)->create(['created_by' => $user->id]);
 
         $response = $this->getJson('/api/v1/contacts?per_page=5');
 
@@ -225,8 +283,8 @@ class ContactManagementTest extends TestCase
 
     public function test_index_uses_the_configured_default_page_size(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        Contact::factory()->count(3)->create();
+        $user = $this->actingUser();
+        Contact::factory()->count(3)->create(['created_by' => $user->id]);
 
         $this->getJson('/api/v1/contacts')
             ->assertOk()
@@ -235,9 +293,9 @@ class ContactManagementTest extends TestCase
 
     public function test_index_search_matches_name_email_and_phone_case_insensitively(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        Contact::factory()->create(['name' => 'Findable Person', 'email' => 'x@x.test', 'phone' => '+15550009999']);
-        Contact::factory()->count(3)->create(['name' => 'Someone Else']);
+        $user = $this->actingUser();
+        Contact::factory()->create(['created_by' => $user->id, 'name' => 'Findable Person', 'email' => 'x@x.test', 'phone' => '+15550009999']);
+        Contact::factory()->count(3)->create(['created_by' => $user->id, 'name' => 'Someone Else']);
 
         $this->getJson('/api/v1/contacts?search=findable')->assertOk()->assertJsonPath('data.meta.total', 1);
         $this->getJson('/api/v1/contacts?search=5550009999')->assertOk()->assertJsonPath('data.meta.total', 1);
@@ -245,10 +303,10 @@ class ContactManagementTest extends TestCase
 
     public function test_index_filters_work_individually_and_combined(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        Contact::factory()->create(['gender' => 'Female', 'nationality' => 'Canada', 'age' => 30]);
-        Contact::factory()->create(['gender' => 'Male', 'nationality' => 'Canada', 'age' => 30]);
-        Contact::factory()->create(['gender' => 'Female', 'nationality' => 'France', 'age' => 65]);
+        $user = $this->actingUser();
+        Contact::factory()->create(['created_by' => $user->id, 'gender' => 'Female', 'nationality' => 'Canada', 'age' => 30]);
+        Contact::factory()->create(['created_by' => $user->id, 'gender' => 'Male', 'nationality' => 'Canada', 'age' => 30]);
+        Contact::factory()->create(['created_by' => $user->id, 'gender' => 'Female', 'nationality' => 'France', 'age' => 65]);
 
         $this->getJson('/api/v1/contacts?gender=Female')->assertOk()->assertJsonPath('data.meta.total', 2);
         $this->getJson('/api/v1/contacts?nationality=Canada')->assertOk()->assertJsonPath('data.meta.total', 2);
@@ -261,7 +319,7 @@ class ContactManagementTest extends TestCase
 
     public function test_index_rejects_an_out_of_range_page_size(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingUser();
 
         $this->getJson('/api/v1/contacts?per_page=1000')
             ->assertStatus(422)
@@ -270,8 +328,8 @@ class ContactManagementTest extends TestCase
 
     public function test_index_response_exposes_only_defined_fields(): void
     {
-        Sanctum::actingAs(User::factory()->create());
-        Contact::factory()->create();
+        $user = $this->actingUser();
+        Contact::factory()->create(['created_by' => $user->id]);
 
         $item = $this->getJson('/api/v1/contacts')->assertOk()->json('data.data.0');
 

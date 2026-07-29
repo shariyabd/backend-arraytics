@@ -154,7 +154,7 @@ The single source of truth all modules map their failures onto. Rendering is cen
 | Rate limited | 429 | throttle message |
 | Server error | 500 | `Server error.` (internals hidden in production) |
 
-> **Note on 403:** this app uses **see-all** visibility — any authenticated user may read/update/delete any contact, and `created_by` is audit metadata, not an access boundary. There is therefore **no 403 path** in practice; 403 remains in the taxonomy for completeness.
+> **Note on 403:** this app uses **owner-only** visibility — a user may read/update/delete only the contacts they created, and `created_by` is the access boundary. A request for another user's contact resolves to **404** (existence is not leaked) rather than 403, so there is **no 403 path** in practice; 403 remains in the taxonomy for completeness.
 
 ---
 
@@ -162,8 +162,8 @@ The single source of truth all modules map their failures onto. Rendering is cen
 
 | Concern | Where handled |
 |---------|---------------|
-| **Authentication** | Route-level Sanctum guard on all protected endpoints; login is public. |
-| **Authorization / ownership scope** | Service layer. See-all visibility; `created_by` is audit metadata only. |
+| **Authentication** | Route-level Sanctum guard on all protected endpoints; register and login are public. |
+| **Authorization / ownership scope** | Service layer. Owner-only visibility; reads/writes scoped to `created_by` = the authenticated user (others → 404). |
 | **Input validation** | Form Request layer (422 + field messages). |
 | **Response shaping** | API Resource + shared envelope; never a raw model or ad-hoc array. |
 | **Error handling** | Central exception handler in `bootstrap/app.php` maps errors → status codes; production hides internals. |

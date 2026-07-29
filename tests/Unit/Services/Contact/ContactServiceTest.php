@@ -5,6 +5,7 @@ namespace Tests\Unit\Services\Contact;
 use App\Models\Contact;
 use App\Models\User;
 use App\Services\Contact\ContactService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -82,19 +83,43 @@ class ContactServiceTest extends TestCase
         $this->assertDatabaseMissing('contacts', ['id' => $contact->id]);
     }
 
-    public function test_find_returns_the_contact(): void
+    public function test_find_returns_a_contact_the_user_owns(): void
     {
-        $contact = Contact::factory()->create();
+        $owner = User::factory()->create();
+        $contact = Contact::factory()->create(['created_by' => $owner->id]);
 
-        $this->assertTrue($contact->is($this->service->find($contact->id)));
+        $this->assertTrue($contact->is($this->service->find($contact->id, $owner->id)));
+    }
+
+    public function test_find_does_not_return_another_users_contact(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $contact = Contact::factory()->create(['created_by' => $owner->id]);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        $this->service->find($contact->id, $other->id);
+    }
+
+    public function test_list_only_returns_the_owners_contacts(): void
+    {
+        $owner = User::factory()->create();
+        Contact::factory()->count(2)->create(['created_by' => $owner->id]);
+        Contact::factory()->count(4)->create(['created_by' => User::factory()->create()->id]);
+
+        $result = $this->service->list([], 15, $owner->id);
+
+        $this->assertSame(2, $result->total());
     }
 
     public function test_list_applies_search_before_pagination(): void
     {
-        Contact::factory()->create(['name' => 'Alice Match']);
-        Contact::factory()->create(['name' => 'Bob Other', 'email' => 'bob@other.test', 'phone' => '+19999999999']);
+        $owner = User::factory()->create();
+        Contact::factory()->create(['created_by' => $owner->id, 'name' => 'Alice Match']);
+        Contact::factory()->create(['created_by' => $owner->id, 'name' => 'Bob Other', 'email' => 'bob@other.test', 'phone' => '+19999999999']);
 
-        $result = $this->service->list(['search' => 'Match'], 15);
+        $result = $this->service->list(['search' => 'Match'], 15, $owner->id);
 
         $this->assertSame(1, $result->total());
         $this->assertSame('Alice Match', $result->items()[0]->name);
@@ -102,33 +127,36 @@ class ContactServiceTest extends TestCase
 
     public function test_list_search_is_case_insensitive_and_matches_email_and_phone(): void
     {
-        Contact::factory()->create(['name' => 'Zed', 'email' => 'findme@example.com', 'phone' => '+15550001111']);
+        $owner = User::factory()->create();
+        Contact::factory()->create(['created_by' => $owner->id, 'name' => 'Zed', 'email' => 'findme@example.com', 'phone' => '+15550001111']);
 
-        $this->assertSame(1, $this->service->list(['search' => 'FINDME'], 15)->total());
-        $this->assertSame(1, $this->service->list(['search' => '5550001111'], 15)->total());
+        $this->assertSame(1, $this->service->list(['search' => 'FINDME'], 15, $owner->id)->total());
+        $this->assertSame(1, $this->service->list(['search' => '5550001111'], 15, $owner->id)->total());
     }
 
     public function test_list_filters_are_combinable(): void
     {
-        Contact::factory()->create(['gender' => 'Female', 'nationality' => 'Canada', 'age' => 30]);
-        Contact::factory()->create(['gender' => 'Male', 'nationality' => 'Canada', 'age' => 30]);
-        Contact::factory()->create(['gender' => 'Female', 'nationality' => 'Canada', 'age' => 70]);
+        $owner = User::factory()->create();
+        Contact::factory()->create(['created_by' => $owner->id, 'gender' => 'Female', 'nationality' => 'Canada', 'age' => 30]);
+        Contact::factory()->create(['created_by' => $owner->id, 'gender' => 'Male', 'nationality' => 'Canada', 'age' => 30]);
+        Contact::factory()->create(['created_by' => $owner->id, 'gender' => 'Female', 'nationality' => 'Canada', 'age' => 70]);
 
         $result = $this->service->list([
             'gender' => 'Female',
             'nationality' => 'Canada',
             'min_age' => 25,
             'max_age' => 40,
-        ], 15);
+        ], 15, $owner->id);
 
         $this->assertSame(1, $result->total());
     }
 
     public function test_list_respects_the_requested_page_size(): void
     {
-        Contact::factory()->count(5)->create();
+        $owner = User::factory()->create();
+        Contact::factory()->count(5)->create(['created_by' => $owner->id]);
 
-        $result = $this->service->list([], 2);
+        $result = $this->service->list([], 2, $owner->id);
 
         $this->assertSame(2, $result->perPage());
         $this->assertCount(2, $result->items());

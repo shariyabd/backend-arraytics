@@ -3,7 +3,7 @@
 ## Address Book Management System — Backend
 
 **Version:** 1.0
-**Status:** Implemented, tested, green (33 passing tests).
+**Status:** Implemented, tested, green (28 passing tests).
 **Purpose:** The Authentication module is the **reference implementation** every future module must copy. This document maps the built code to the architecture so a new module can be produced by analogy.
 **Source Documents:** [04-Architecture.md](04-Architecture.md), [05-Guardrails.md](05-Guardrails.md), [api-doc/auth.md](../api-doc/auth.md)
 
@@ -104,7 +104,7 @@ Full contract: [api-doc/auth.md](../api-doc/auth.md).
 
 - Sanctum installed and wired; `HasApiTokens` on `User`.
 - All routes registered under `/api/v1`.
-- **Auth slice: 33 tests passing; full suite: 59 tests passing.** Pint clean.
+- **Auth slice: 28 tests passing; full suite: 66 tests passing.** Pint clean.
 - Login failures return 422 (framework convention); token failures return 401 via the Sanctum guard.
 
 ---
