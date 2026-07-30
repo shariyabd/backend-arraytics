@@ -253,6 +253,7 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000/api/v1
 - The backend container waits for MySQL, generates the app key, migrates, and seeds ~50 contacts on a fresh database.
+- Ports and DB credentials are overridable via environment variables (`BACKEND_PORT`, `FRONTEND_PORT`, `DOCKER_DB_DATABASE`, `DOCKER_DB_PASSWORD`) — no need to edit `docker-compose.yml`. See [DOCKER.md](DOCKER.md) § Configuration.
 
 Full details, architecture, and troubleshooting: **[DOCKER.md](DOCKER.md)**. The non-Docker steps in §4 remain the primary, always-supported path.
 

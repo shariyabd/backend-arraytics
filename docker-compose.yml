@@ -8,13 +8,20 @@
 # Frontend (SPA):  http://localhost:5173
 # Backend (API):   http://localhost:8000/api/v1
 # Login:           test@example.com / password
+#
+# Every ${VAR:-default} below is optional and can be overridden WITHOUT editing
+# this file — via the shell (`BACKEND_PORT=8001 docker compose up`) or by adding
+# the variable to a `.env` in this directory. The DOCKER_ prefix is deliberate:
+# it keeps the container stack independent from the Laravel `.env`'s own DB_*
+# values, which describe your local (non-Docker) database, not the containers.
+# See DOCKER.md § Configuration.
 
 services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: address_book
-      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-address_book}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_DB_PASSWORD:-secret}
     # No host port published by default — the backend reaches MySQL over the
     # internal compose network (host `mysql`, port 3306). Uncomment to connect a
     # host DB tool, picking any free host port (3306/3307 are often in use):
@@ -23,7 +30,9 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-psecret"]
+      # $$ so the container shell (not compose) expands the variable — the check
+      # keeps working when DOCKER_DB_PASSWORD is overridden.
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --ssl-mode=DISABLED --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -34,19 +43,21 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "false"
-      APP_URL: http://localhost:8000
+      APP_URL: http://localhost:${BACKEND_PORT:-8000}
+      # Host/port are fixed: inside the compose network MySQL is always
+      # reachable at `mysql:3306`, regardless of any local .env values.
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_DATABASE: address_book
+      DB_DATABASE: ${DOCKER_DB_DATABASE:-address_book}
       DB_USERNAME: root
-      DB_PASSWORD: secret
-      FRONTEND_URL: http://localhost:5173
+      DB_PASSWORD: ${DOCKER_DB_PASSWORD:-secret}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
       CACHE_STORE: file
       SESSION_DRIVER: file
       QUEUE_CONNECTION: sync
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       mysql:
         condition: service_healthy
@@ -58,7 +69,7 @@ services:
         # Same-origin path; nginx in the frontend image proxies /api → backend
         VITE_API_BASE_URL: /api/v1
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
     depends_on:
       - backend
 
