@@ -32,7 +32,7 @@ services:
     healthcheck:
       # $$ so the container shell (not compose) expands the variable — the check
       # keeps working when DOCKER_DB_PASSWORD is overridden.
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --skip-ssl --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --ssl-mode=DISABLED --silent"]
       interval: 5s
       timeout: 5s
       retries: 20

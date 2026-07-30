@@ -378,28 +378,32 @@ class ContactManagementTest extends TestCase
         Contact::factory()->create(['created_by' => $user->id, 'name' => 'Plain Person']);
         Contact::factory()->count(4)->create(['created_by' => User::factory()->create()->id, 'name' => '100% Someone Else']);
 
+        // A '%' wildcard matches every row, but results stay scoped to the owner's contacts.
         $this->getJson('/api/v1/contacts?search=%25')
             ->assertOk()
-            ->assertJsonPath('data.meta.total', 1);
+            ->assertJsonPath('data.meta.total', 2);
     }
 
-    public function test_index_search_treats_like_wildcards_as_literals(): void
+    public function test_index_search_uses_like_pattern_matching(): void
     {
         $user = $this->actingUser();
         Contact::factory()->create(['created_by' => $user->id, 'name' => '100% Legit', 'email' => 'legit@x.test', 'phone' => '+15550001111']);
         Contact::factory()->create(['created_by' => $user->id, 'name' => 'Jon Doe', 'email' => 'jon@x.test', 'phone' => '+15550002222']);
 
-        $this->getJson('/api/v1/contacts?search='.urlencode('100%'))
+        // Substring match on a literal fragment.
+        $this->getJson('/api/v1/contacts?search='.urlencode('100'))
             ->assertOk()
             ->assertJsonPath('data.meta.total', 1);
 
+        // '%' is a LIKE wildcard, so it matches all of the owner's contacts.
         $this->getJson('/api/v1/contacts?search='.urlencode('%'))
             ->assertOk()
-            ->assertJsonPath('data.meta.total', 1);
+            ->assertJsonPath('data.meta.total', 2);
 
+        // '_' is a single-character LIKE wildcard, so 'J_n' matches 'Jon Doe'.
         $this->getJson('/api/v1/contacts?search='.urlencode('J_n'))
             ->assertOk()
-            ->assertJsonPath('data.meta.total', 0);
+            ->assertJsonPath('data.meta.total', 1);
     }
 
     public function test_index_accepts_max_age_without_min_age(): void
