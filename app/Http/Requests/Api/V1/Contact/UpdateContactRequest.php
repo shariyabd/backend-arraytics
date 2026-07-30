@@ -17,7 +17,7 @@ class UpdateContactRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone' => ['sometimes', 'required', 'string', 'max:30', 'regex:/^\+?[0-9\s\-()]{7,}$/'],
+            'phone' => ['sometimes', 'required', 'string', 'max:30', 'regex:/^\+?(?=(?:.*\d){7,})[0-9\s\-()]{7,}$/'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255'],
             'website' => ['sometimes', 'nullable', 'string', 'url', 'max:255'],
             'gender' => ['sometimes', 'required', 'string', Rule::in(Contact::GENDERS)],

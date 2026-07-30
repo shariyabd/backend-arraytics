@@ -20,7 +20,11 @@ class ListContactsRequest extends FormRequest
             'gender' => ['sometimes', 'string', Rule::in(Contact::GENDERS)],
             'nationality' => ['sometimes', 'string', 'max:255'],
             'min_age' => ['sometimes', 'integer', 'min:'.Contact::MIN_AGE, 'max:'.Contact::MAX_AGE],
-            'max_age' => ['sometimes', 'integer', 'min:'.Contact::MIN_AGE, 'max:'.Contact::MAX_AGE, 'gte:min_age'],
+            'max_age' => [
+                'sometimes', 'integer',
+                'min:'.Contact::MIN_AGE, 'max:'.Contact::MAX_AGE,
+                Rule::when($this->filled('min_age'), ['gte:min_age']),
+            ],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.self::maxPerPage()],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];

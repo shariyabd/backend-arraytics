@@ -374,15 +374,60 @@ class ContactManagementTest extends TestCase
     public function test_index_search_with_sql_wildcards_stays_owner_scoped(): void
     {
         $user = $this->actingUser();
-        Contact::factory()->count(2)->create(['created_by' => $user->id]);
-        Contact::factory()->count(4)->create(['created_by' => User::factory()->create()->id]);
+        Contact::factory()->create(['created_by' => $user->id, 'name' => '100% Legit']);
+        Contact::factory()->create(['created_by' => $user->id, 'name' => 'Plain Person']);
+        Contact::factory()->count(4)->create(['created_by' => User::factory()->create()->id, 'name' => '100% Someone Else']);
 
         $this->getJson('/api/v1/contacts?search=%25')
             ->assertOk()
-            ->assertJsonPath('data.meta.total', 2);
+            ->assertJsonPath('data.meta.total', 1);
+    }
 
-        $this->getJson('/api/v1/contacts?search=_')
+    public function test_index_search_treats_like_wildcards_as_literals(): void
+    {
+        $user = $this->actingUser();
+        Contact::factory()->create(['created_by' => $user->id, 'name' => '100% Legit', 'email' => 'legit@x.test', 'phone' => '+15550001111']);
+        Contact::factory()->create(['created_by' => $user->id, 'name' => 'Jon Doe', 'email' => 'jon@x.test', 'phone' => '+15550002222']);
+
+        $this->getJson('/api/v1/contacts?search='.urlencode('100%'))
             ->assertOk()
-            ->assertJsonPath('data.meta.total', 2);
+            ->assertJsonPath('data.meta.total', 1);
+
+        $this->getJson('/api/v1/contacts?search='.urlencode('%'))
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 1);
+
+        $this->getJson('/api/v1/contacts?search='.urlencode('J_n'))
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 0);
+    }
+
+    public function test_index_accepts_max_age_without_min_age(): void
+    {
+        $user = $this->actingUser();
+        Contact::factory()->create(['created_by' => $user->id, 'age' => 30]);
+        Contact::factory()->create(['created_by' => $user->id, 'age' => 60]);
+
+        $this->getJson('/api/v1/contacts?max_age=40')
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 1);
+    }
+
+    public function test_store_rejects_a_phone_without_digits(): void
+    {
+        $this->actingUser();
+
+        $this->postJson('/api/v1/contacts', $this->validPayload(['phone' => '-------']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('phone');
+    }
+
+    public function test_store_accepts_a_formatted_phone_with_digits(): void
+    {
+        $this->actingUser();
+
+        $this->postJson('/api/v1/contacts', $this->validPayload(['phone' => '+1 (555) 123-4567']))
+            ->assertCreated()
+            ->assertJsonPath('data.phone', '+1 (555) 123-4567');
     }
 }

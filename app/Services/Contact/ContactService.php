@@ -13,11 +13,13 @@ class ContactService
         $query = Contact::query()->where('created_by', $ownerId);
 
         if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($builder) use ($search): void {
-                $builder->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+            $search = addcslashes($filters['search'], '%_\\');
+            $like = "%{$search}%";
+            // Explicit ESCAPE so the escaping works on SQLite (tests) as well as MySQL.
+            $query->where(function ($builder) use ($like): void {
+                $builder->whereRaw("name LIKE ? ESCAPE '\\'", [$like])
+                    ->orWhereRaw("email LIKE ? ESCAPE '\\'", [$like])
+                    ->orWhereRaw("phone LIKE ? ESCAPE '\\'", [$like]);
             });
         }
 

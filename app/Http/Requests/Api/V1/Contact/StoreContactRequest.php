@@ -17,7 +17,7 @@ class StoreContactRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30', 'regex:/^\+?[0-9\s\-()]{7,}$/'],
+            'phone' => ['required', 'string', 'max:30', 'regex:/^\+?(?=(?:.*\d){7,})[0-9\s\-()]{7,}$/'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'website' => ['nullable', 'string', 'url', 'max:255'],
             'gender' => ['required', 'string', Rule::in(Contact::GENDERS)],
