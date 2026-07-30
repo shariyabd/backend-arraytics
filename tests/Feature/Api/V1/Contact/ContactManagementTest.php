@@ -66,7 +66,7 @@ class ContactManagementTest extends TestCase
                 'data' => ['id', 'name', 'phone', 'email', 'website', 'gender', 'age', 'nationality', 'created_by', 'created_at'],
             ]);
 
-        $this->assertDatabaseHas('contacts', ['email' => 'ada@example.com', 'created_by' => $user->id]);
+        $this->assertDatabaseHas('address_book', ['email' => 'ada@example.com', 'created_by' => $user->id]);
     }
 
     public function test_created_by_is_taken_from_the_token_and_client_value_is_ignored(): void
@@ -79,7 +79,7 @@ class ContactManagementTest extends TestCase
         ]));
 
         $response->assertCreated()->assertJsonPath('data.created_by', $user->id);
-        $this->assertDatabaseHas('contacts', ['email' => 'ada@example.com', 'created_by' => $user->id]);
+        $this->assertDatabaseHas('address_book', ['email' => 'ada@example.com', 'created_by' => $user->id]);
     }
 
     public function test_website_is_optional(): void
@@ -148,7 +148,7 @@ class ContactManagementTest extends TestCase
             ->assertJsonPath('data.name', 'New Name')
             ->assertJsonPath('data.id', $contact->id);
 
-        $this->assertDatabaseHas('contacts', ['id' => $contact->id, 'name' => 'New Name']);
+        $this->assertDatabaseHas('address_book', ['id' => $contact->id, 'name' => 'New Name']);
     }
 
     public function test_update_leaves_created_by_and_created_at_unchanged(): void
@@ -192,7 +192,7 @@ class ContactManagementTest extends TestCase
         $response = $this->deleteJson("/api/v1/contacts/{$contact->id}");
 
         $response->assertOk()->assertJson(['success' => true, 'message' => 'Contact deleted.']);
-        $this->assertDatabaseMissing('contacts', ['id' => $contact->id]);
+        $this->assertDatabaseMissing('address_book', ['id' => $contact->id]);
     }
 
     public function test_deleting_a_missing_contact_returns_404(): void
@@ -240,7 +240,7 @@ class ContactManagementTest extends TestCase
         $othersContact = Contact::factory()->create(['created_by' => User::factory()->create()->id, 'name' => 'Untouched']);
 
         $this->putJson("/api/v1/contacts/{$othersContact->id}", ['name' => 'Hacked'])->assertStatus(404);
-        $this->assertDatabaseHas('contacts', ['id' => $othersContact->id, 'name' => 'Untouched']);
+        $this->assertDatabaseHas('address_book', ['id' => $othersContact->id, 'name' => 'Untouched']);
     }
 
     public function test_a_user_cannot_delete_another_users_contact(): void
@@ -249,7 +249,7 @@ class ContactManagementTest extends TestCase
         $othersContact = Contact::factory()->create(['created_by' => User::factory()->create()->id]);
 
         $this->deleteJson("/api/v1/contacts/{$othersContact->id}")->assertStatus(404);
-        $this->assertDatabaseHas('contacts', ['id' => $othersContact->id]);
+        $this->assertDatabaseHas('address_book', ['id' => $othersContact->id]);
     }
 
     public function test_index_returns_paginated_results_with_meta(): void
@@ -330,5 +330,59 @@ class ContactManagementTest extends TestCase
             ['id', 'name', 'phone', 'email', 'website', 'gender', 'age', 'nationality', 'created_by', 'created_at'],
             array_keys($item),
         );
+    }
+
+    public function test_store_rejects_a_non_numeric_phone(): void
+    {
+        $this->actingUser();
+
+        $this->postJson('/api/v1/contacts', $this->validPayload(['phone' => 'abc']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('phone');
+    }
+
+    public function test_index_rejects_min_age_greater_than_max_age(): void
+    {
+        $this->actingUser();
+
+        $this->getJson('/api/v1/contacts?min_age=50&max_age=40')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('max_age');
+    }
+
+    public function test_index_page_navigation_returns_a_distinct_page(): void
+    {
+        $user = $this->actingUser();
+        Contact::factory()->count(10)->create(['created_by' => $user->id]);
+
+        $firstPageIds = $this->getJson('/api/v1/contacts?per_page=5&page=1')
+            ->assertOk()
+            ->assertJsonPath('data.meta.current_page', 1)
+            ->json('data.data.*.id');
+
+        $secondPage = $this->getJson('/api/v1/contacts?per_page=5&page=2')
+            ->assertOk()
+            ->assertJsonPath('data.meta.current_page', 2);
+
+        $secondPageIds = $secondPage->json('data.data.*.id');
+
+        $this->assertCount(5, $firstPageIds);
+        $this->assertCount(5, $secondPageIds);
+        $this->assertEmpty(array_intersect($firstPageIds, $secondPageIds));
+    }
+
+    public function test_index_search_with_sql_wildcards_stays_owner_scoped(): void
+    {
+        $user = $this->actingUser();
+        Contact::factory()->count(2)->create(['created_by' => $user->id]);
+        Contact::factory()->count(4)->create(['created_by' => User::factory()->create()->id]);
+
+        $this->getJson('/api/v1/contacts?search=%25')
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 2);
+
+        $this->getJson('/api/v1/contacts?search=_')
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 2);
     }
 }

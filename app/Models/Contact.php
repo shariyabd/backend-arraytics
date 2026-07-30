@@ -16,6 +16,8 @@ class Contact extends Model
 
     public const MAX_AGE = 150;
 
+    protected $table = 'address_book';
+
     protected $fillable = [
         'name',
         'phone',

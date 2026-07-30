@@ -1,6 +1,6 @@
 # Address Book Management System — Backend API
 
-A decoupled **Laravel 12 REST API** for managing address-book contacts. JSON only (no Blade/views), consumed by a separate React SPA. Token authentication via Laravel Sanctum; one core entity (`Contact`) owned by the authenticated user who created it.
+A decoupled **Laravel 12 REST API** for managing address-book contacts. JSON only (no Blade/views), consumed by a separate React SPA. Token authentication via Laravel Sanctum; one core entity (`Contact`, stored in the `address_book` table) owned by the authenticated user who created it.
 
 > This README documents the **backend**. The frontend has its own setup guide. Docker is optional and documented at the end (the non-Docker steps below are the primary, always-supported path).
 
@@ -43,13 +43,14 @@ backend/
 │   │   ├── Requests/Api/V1/{Auth,Contact}/      # Form Request validation
 │   │   └── Resources/Api/V1/                    # API Resources (output shaping)
 │   ├── Services/{Auth,Contact}/                 # business logic (the heart)
-│   ├── Models/                                  # User, Contact
+│   ├── Models/                                  # User, Contact (maps to `address_book`)
 │   └── Support/ApiResponse.php                  # uniform response envelope
 ├── bootstrap/app.php                            # middleware, routing, exception → envelope
 ├── config/contacts.php                          # pagination defaults (per_page)
+├── config/cors.php                              # allowed origins (env FRONTEND_URL)
 ├── database/
 │   ├── factories/                               # User, Contact factories
-│   ├── migrations/                              # users, contacts, tokens, ...
+│   ├── migrations/                              # users, address_book, tokens, ...
 │   └── seeders/                                 # DatabaseSeeder → ContactSeeder (~50)
 ├── routes/api.php                               # /api/v1 routes
 ├── tests/{Feature,Unit}/Api/V1/                 # endpoint + service tests
@@ -130,6 +131,16 @@ php artisan serve
 
 The API is now at **http://localhost:8000** (base path `/api/v1`).
 
+### 4.6 CORS (cross-origin) for the SPA
+
+The API restricts browser origins in [config/cors.php](config/cors.php) to the value of `FRONTEND_URL` (default `http://localhost:5173`). If you run the SPA on a different origin, set it in `.env`:
+
+```dotenv
+FRONTEND_URL=http://localhost:5173
+```
+
+> Not needed when using Docker or the SPA's Vite dev proxy — in those setups requests are same-origin.
+
 ---
 
 ## 5. Seeded Credentials
@@ -158,10 +169,10 @@ curl http://localhost:8000/api/v1/contacts \
 
 ## 6. Running Tests
 
-Tests run against an in-memory SQLite database (no configuration needed):
+Tests run against an in-memory SQLite database (no configuration needed). The suite is **68 tests / 242 assertions** and covers auth (login/register/logout, rate limiting), full CRUD, every validation rule (including invalid phone and `min_age > max_age`), owner-scoping/IDOR (a user cannot read/update/delete another user's contact → `404`), pagination navigation, filters, and wildcard-safe search:
 
 ```bash
-php artisan test --compact          # full suite
+php artisan test --compact          # full suite (68 passing)
 php artisan test --compact --filter=Contact   # a subset
 ```
 
@@ -192,12 +203,22 @@ Inspect live routes with `php artisan route:list --path=api --except-vendor`.
 
 ---
 
-## 8. Docker (Optional — not yet provided)
+## 8. Docker (Optional — one command)
 
-Docker is a bonus. A `docker-compose.yml` (backend + frontend + MySQL, single-command startup) is **planned** and will be added once the frontend integration is complete. Until then, use the non-Docker steps in §4, which remain the fully supported path.
+A [docker-compose.yml](docker-compose.yml) in this repo runs **MySQL + this API + the React SPA** together. Check out the frontend repo alongside this one as a sibling folder named `frontend` (`../frontend`), then from this backend directory:
+
+```bash
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000/api/v1
+- The backend container waits for MySQL, generates the app key, migrates, and seeds ~50 contacts on a fresh database.
+
+Full details, architecture, and troubleshooting: **[DOCKER.md](DOCKER.md)**. The non-Docker steps in §4 remain the primary, always-supported path.
 
 ---
 
 ## 9. Frontend
 
-The React SPA lives in the sibling `frontend/` directory and is documented separately. It consumes this API using the base URL and the token flow described in §5 and `api-doc/`.
+The React SPA lives in the sibling `frontend/` directory and is documented in **[../frontend/README.md](../frontend/README.md)**. It consumes this API using the base URL and the token flow described in §5 and [api-doc/](api-doc/).

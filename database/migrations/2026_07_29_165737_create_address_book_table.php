@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('contacts', function (Blueprint $table): void {
+        Schema::create('address_book', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->string('phone');
@@ -26,11 +26,14 @@ return new class extends Migration
             $table->index('name');
             $table->index('email');
             $table->index('phone');
+            $table->index('gender');
+            $table->index('nationality');
+            $table->index('age');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('contacts');
+        Schema::dropIfExists('address_book');
     }
 };

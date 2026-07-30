@@ -36,7 +36,7 @@ class ContactServiceTest extends TestCase
         ], $owner->id);
 
         $this->assertSame($owner->id, $contact->created_by);
-        $this->assertDatabaseHas('contacts', [
+        $this->assertDatabaseHas('address_book', [
             'email' => 'ada@example.com',
             'created_by' => $owner->id,
         ]);
@@ -80,7 +80,7 @@ class ContactServiceTest extends TestCase
 
         $this->service->delete($contact);
 
-        $this->assertDatabaseMissing('contacts', ['id' => $contact->id]);
+        $this->assertDatabaseMissing('address_book', ['id' => $contact->id]);
     }
 
     public function test_find_returns_a_contact_the_user_owns(): void

@@ -1,0 +1,66 @@
+# Address Book Management System — one-command stack (backend + frontend + MySQL)
+#
+# Run from THIS (backend) directory, with the frontend repo checked out alongside
+# as a sibling folder named `frontend` (i.e. ../frontend):
+#
+#   docker compose up --build
+#
+# Frontend (SPA):  http://localhost:5173
+# Backend (API):   http://localhost:8000/api/v1
+# Login:           test@example.com / password
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: address_book
+      MYSQL_ROOT_PASSWORD: secret
+    # No host port published by default — the backend reaches MySQL over the
+    # internal compose network (host `mysql`, port 3306). Uncomment to connect a
+    # host DB tool, picking any free host port (3306/3307 are often in use):
+    # ports:
+    #   - "3308:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-psecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_DATABASE: address_book
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+      FRONTEND_URL: http://localhost:5173
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        # Same-origin path; nginx in the frontend image proxies /api → backend
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
