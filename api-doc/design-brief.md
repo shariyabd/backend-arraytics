@@ -3,6 +3,8 @@
 **Audience:** an AI/design agent tasked with designing the frontend UI **before** implementation.
 **Purpose:** describe *what* to build and *why*, derived from the backend's actual behavior. This is a product + interaction spec — it is **not** the API reference. Endpoint payloads/schemas will be shared separately (`api-doc/auth.md`, `api-doc/address-book.md`) for the implementation phase.
 
+> Canonical copy lives in the backend repo (`api-doc/`); the frontend copy is a mirror.
+
 > Design against this document. Where it constrains data, validation, states, or flows, treat those as fixed — they mirror what the backend enforces. Visual/layout/aesthetic decisions are yours.
 
 ---

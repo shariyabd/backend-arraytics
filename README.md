@@ -4,6 +4,8 @@ A decoupled **Laravel 12 REST API** for managing address-book contacts. JSON onl
 
 > This README documents the **backend**. The frontend has its own setup guide. Docker is optional and documented at the end (the non-Docker steps below are the primary, always-supported path).
 
+> **Folder layout assumption:** the docs and `docker-compose.yml` expect the two repos checked out as **sibling folders named `backend` and `frontend`** (e.g. `git clone <backend-url> backend`). If your checkout folders are named differently, either rename them or adjust the `../frontend` paths in `docker-compose.yml` and the cross-links.
+
 ---
 
 ## 1. Tech Stack & Versions
@@ -109,7 +111,7 @@ mysql -u root -p -e "CREATE DATABASE address_book CHARACTER SET utf8mb4 COLLATE 
 ```
 
 **Option B — SQLite (zero-config quick start).**
-Keep `DB_CONNECTION=sqlite` in `.env` and create the file:
+`.env.example` defaults to MySQL — edit `.env`: comment out the MySQL `DB_*` block and uncomment the SQLite lines (`DB_CONNECTION=sqlite`, `DB_DATABASE=database/database.sqlite`), then create the file:
 
 ```bash
 touch database/database.sqlite
@@ -169,10 +171,10 @@ curl http://localhost:8000/api/v1/contacts \
 
 ## 6. Running Tests
 
-Tests run against an in-memory SQLite database (no configuration needed). The suite is **68 tests / 242 assertions** and covers auth (login/register/logout, rate limiting), full CRUD, every validation rule (including invalid phone and `min_age > max_age`), owner-scoping/IDOR (a user cannot read/update/delete another user's contact → `404`), pagination navigation, filters, and wildcard-safe search:
+Tests run against an in-memory SQLite database (no configuration needed). The suite is **72 tests / 253 assertions** and covers auth (login/register/logout, rate limiting), full CRUD, every validation rule (including digit-less phone and `min_age > max_age`), owner-scoping/IDOR (a user cannot read/update/delete another user's contact → `404`), pagination navigation, filters (including `max_age` alone), and wildcard-escaped search:
 
 ```bash
-php artisan test --compact          # full suite (68 passing)
+php artisan test --compact          # full suite (72 passing)
 php artisan test --compact --filter=Contact   # a subset
 ```
 
@@ -203,9 +205,46 @@ Inspect live routes with `php artisan route:list --path=api --except-vendor`.
 
 ---
 
-## 8. Docker (Optional — one command)
+## 8. Running the Full System (Backend + Frontend) — two options
 
-A [docker-compose.yml](docker-compose.yml) in this repo runs **MySQL + this API + the React SPA** together. Check out the frontend repo alongside this one as a sibling folder named `frontend` (`../frontend`), then from this backend directory:
+The backend and frontend are **two independent git repositories**. You can run the whole system either natively (two terminals, no Docker) or with Docker (one command). Both paths are fully supported — pick one.
+
+### Option A — Native, two separate repos run locally (no Docker required)
+
+1. Clone both repos side by side:
+   ```bash
+   git clone <backend-repo-url> backend
+   git clone <frontend-repo-url> frontend
+   ```
+2. **Terminal 1 — backend:** follow §4 above (`composer install`, `.env` + key, `php artisan migrate --seed`, `php artisan serve` → http://localhost:8000).
+3. **Terminal 2 — frontend:** follow [../frontend/README.md](../frontend/README.md) (`npm install`, `cp .env.example .env`, `npm run dev` → http://localhost:5173).
+4. Open **http://localhost:5173** and log in with the seeded credentials (§5). No CORS setup is needed — the frontend's dev proxy makes requests same-origin.
+
+### Option B — Docker (one command)
+
+**Prerequisite:** Docker must be **installed and running** before this step — Docker Engine/Desktop **24+** with Compose v2. Start Docker Desktop (or the Docker daemon) first, then verify:
+
+```bash
+docker --version          # 24+
+docker compose version    # v2 (the `docker compose` plugin, not legacy docker-compose)
+docker info               # errors here mean the daemon isn't running yet
+```
+
+A [docker-compose.yml](docker-compose.yml) in this repo runs **MySQL + this API + the React SPA** together. Check out the frontend repo alongside this one as a sibling folder named `frontend` (`../frontend`), so your directory tree looks like this:
+
+```
+any-parent-folder/
+├── backend/                  # this repo (contains docker-compose.yml, Dockerfile)
+│   ├── app/
+│   ├── docker-compose.yml    # ← run `docker compose up --build` from here
+│   └── ...
+└── frontend/                 # the React SPA repo (contains its own Dockerfile)
+    ├── src/
+    ├── Dockerfile
+    └── ...
+```
+
+Then, from this **backend** directory:
 
 ```bash
 docker compose up --build
@@ -222,3 +261,30 @@ Full details, architecture, and troubleshooting: **[DOCKER.md](DOCKER.md)**. The
 ## 9. Frontend
 
 The React SPA lives in the sibling `frontend/` directory and is documented in **[../frontend/README.md](../frontend/README.md)**. It consumes this API using the base URL and the token flow described in §5 and [api-doc/](api-doc/).
+
+---
+
+## 10. Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `SQLSTATE[HY000] [2002] Connection refused` on migrate | MySQL not running, or wrong `DB_HOST`/`DB_PORT` | Start MySQL; verify the `DB_*` values in `.env` match your server. Or use the SQLite quick start (§4.3 Option B). |
+| `SQLSTATE[HY000] [1045] Access denied` | Wrong `DB_USERNAME`/`DB_PASSWORD` | Fix credentials in `.env`; confirm the user can access the `address_book` database. |
+| `Unknown database 'address_book'` | Database not created | Run the `CREATE DATABASE` command in §4.3. |
+| `php artisan serve` fails: port 8000 in use | Another process owns the port | `php artisan serve --port=8001` (and update the frontend's `VITE_API_TARGET`). |
+| Browser CORS error from the SPA | SPA origin not in the allow-list (only applies when the SPA calls the API cross-origin) | Set `FRONTEND_URL` in `.env` to the SPA origin (§4.6). Not needed with the Vite dev proxy or Docker (same-origin). |
+| `No application encryption key` | `.env` created without a key | `php artisan key:generate`. |
+| Config changes seem ignored | Cached config | `php artisan config:clear`. |
+| Tests emit warnings / odd failures | Missing `.env` | `cp .env.example .env && php artisan key:generate` first — tests themselves use in-memory SQLite via `phpunit.xml`, no DB setup needed. |
+| Docker: frontend build fails with a context error | Frontend repo not checked out at `../frontend` | See the folder-layout note at the top; clone the frontend as a sibling named `frontend`. |
+
+---
+
+## 11. Assumptions & documented decisions
+
+Ambiguities in the assignment were resolved explicitly and recorded (per module docs and [CLAUDE.md](CLAUDE.md)); the key ones:
+
+- **Visibility is owner-only** — a user can read/update/delete only contacts they created; another user's contact resolves to `404` so existence isn't leaked (OQ-1).
+- **Age** must be an integer 1–150 (OQ-3); **gender** ∈ `Male | Female | Other` (OQ-4); **nationality** is free text (OQ-5); **website** is optional (OQ-11).
+- **Pagination** defaults to 15 per page, max 100 (`config/contacts.php`).
+- Full decision log: [docs/02-Requirements-and-Domain.md](docs/02-Requirements-and-Domain.md) and [api-doc/address-book.md](api-doc/address-book.md).

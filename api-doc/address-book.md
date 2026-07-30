@@ -2,7 +2,9 @@
 
 **Module:** B — Address Book (Contact Management) · **Type:** Core context
 **Base path:** `/api/v1` · **Auth:** Bearer token (Laravel Sanctum)
-**Status:** Implemented, tested (36 passing), Pint clean.
+**Status:** Implemented, tested (full backend suite: 72 passing / 253 assertions), Pint clean.
+
+> Canonical copy lives in the backend repo (`api-doc/`); the frontend copy is a mirror.
 
 This document is the implementation-accurate contract for the Contact API. It is complete enough to consume or re-implement the module without further clarification.
 
@@ -83,7 +85,7 @@ All requests should send `Accept: application/json`. Write endpoints send `Conte
 | Field | Type | Rules |
 |-------|------|-------|
 | name | string | required, max 255 |
-| phone | string | required, max 30, matches `^\+?[0-9\s\-()]{7,}$` |
+| phone | string | required, max 30, matches `^\+?(?=(?:.*\d){7,})[0-9\s\-()]{7,}$` (at least 7 digits; `+`, spaces, dashes, parentheses allowed) |
 | email | string | required, valid email, max 255 |
 | website | string\|null | optional; valid URL, max 255 (when present) |
 | gender | string | required, in `Male\|Female\|Other` |
@@ -133,11 +135,11 @@ All requests should send `Accept: application/json`. Write endpoints send `Conte
 
 | Param | Type | Rules | Default |
 |-------|------|-------|---------|
-| search | string | max 255; partial, case-insensitive match on name, email, phone | — |
+| search | string | max 255; partial, case-insensitive match on name, email, phone; `%`/`_` are treated as literal characters, not SQL wildcards | — |
 | gender | string | in `Male\|Female\|Other` | — |
 | nationality | string | max 255; exact match | — |
 | min_age | integer | 1–150 | — |
-| max_age | integer | 1–150, `>= min_age` | — |
+| max_age | integer | 1–150; may be sent without `min_age`; when both are present, must be `>= min_age` | — |
 | per_page | integer | 1–100 | 15 |
 | page | integer | `>= 1` | 1 |
 

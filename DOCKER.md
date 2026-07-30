@@ -6,21 +6,36 @@ Run the entire stack — **MySQL + Laravel API + React SPA** — with a single c
 
 ## Prerequisites
 
-- Docker Engine 24+ and Docker Compose v2 (`docker compose`, not the legacy `docker-compose`)
+- Docker **installed and running**: Docker Engine 24+ (or Docker Desktop) and Docker Compose v2 (`docker compose`, not the legacy `docker-compose`). On macOS/Windows, launch Docker Desktop and wait for it to report "running" before continuing.
 - Ports **5173** and **8000** free on the host (MySQL is internal-only by default)
 
 Verify:
 
 ```bash
-docker --version
-docker compose version
+docker --version          # 24+
+docker compose version    # v2
+docker info               # fails if the Docker daemon isn't running — start Docker Desktop / dockerd first
 ```
 
 ---
 
 ## Quick start (one command)
 
-Check out both repos as sibling folders — this backend repo and the frontend repo as `../frontend`. Then, from this **backend** directory (which holds `docker-compose.yml`):
+Check out both repos as sibling folders — this backend repo and the frontend repo as `../frontend`:
+
+```
+any-parent-folder/
+├── backend/                  # this repo
+│   ├── docker-compose.yml    # ← run the command below from here
+│   ├── Dockerfile
+│   └── ...
+└── frontend/                 # the React SPA repo
+    ├── Dockerfile
+    ├── nginx.conf
+    └── ...
+```
+
+Then, from this **backend** directory (which holds `docker-compose.yml`):
 
 ```bash
 docker compose up --build
